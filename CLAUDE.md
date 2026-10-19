@@ -46,4 +46,4 @@ tests/fixtures/  FAKE .ics / .csv / .json files only.
 10. **End of session.** Update "Current status" below: the current stage, what works, what's next, and any known issues.
 
 ## Current status
-Stage 0, not started. Next: follow `docs/HANDOFF.md`.
+Stage 0: the repo is public with Pages set to GitHub Actions, and `docs/PLAN.md` is written. Waiting for Trenten to agree to the PLAN.md §7 departures (Node 24, extra dev-deps, no state library). Next: Stage 1. No app code exists yet.
