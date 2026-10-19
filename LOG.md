@@ -66,3 +66,4 @@ Format: what I asked → what changed / what the AI got wrong.
   - The temporary 4-hour event spanning Now was translucent before the marker and solid after. It was removed before the stage ended, as the spec requires.
 - 60 tests pass, typecheck clean, build OK.
 - Approved the live-mode zoom interpretation: zoom centers on the Now marker while live, and on the cursor otherwise.
+- Verified Stage 3 by hand ("looks very good").
