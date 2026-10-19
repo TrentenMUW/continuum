@@ -31,8 +31,12 @@ export async function updateEvent(
   });
 }
 
-export function deleteEvent(db: ContinuumDB, id: string): Promise<void> {
-  return db.events.delete(id);
+/** Delete an event. Deleting a series also deletes its override records. */
+export async function deleteEvent(db: ContinuumDB, id: string): Promise<void> {
+  await db.transaction("rw", db.events, async () => {
+    const overrides = await db.events.where("recurrenceParentId").equals(id).primaryKeys();
+    await db.events.bulkDelete([id, ...overrides]);
+  });
 }
 
 /** Drop keys whose value is undefined, so switching timed ↔ all-day leaves no stale fields. */

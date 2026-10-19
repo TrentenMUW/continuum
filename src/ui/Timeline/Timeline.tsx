@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
-import type { EventIndex } from "../../data/index";
+import type { EventIndex, Occurrence } from "../../data/index";
 import type { AppSettings, Category, Milestone } from "../../data/types";
 import { layoutLanes } from "../../time/lanes";
 import { useRenderWindow, viewportStore } from "../../state/viewportStore";
@@ -26,7 +26,7 @@ interface TimelineProps {
   index: EventIndex;
   eventsVersion: number;
   selectedId: string | null;
-  onSelectEvent: (id: string) => void;
+  onSelectEvent: (occ: Occurrence) => void;
   onEditCategories: () => void;
 }
 
@@ -146,7 +146,7 @@ export function Timeline({
 
   // Query and lay out only the buffered window (D4, D5, §7); panning inside it reuses this.
   const occurrences = useMemo(
-    () => (rw ? index.query(rw.winStart, rw.winEnd) : []),
+    () => (rw ? index.query(rw.winStart, rw.winEnd, 1 / rw.scale) : []),
     // eventsVersion changes whenever the index is patched in place.
     [rw, index, eventsVersion],
   );

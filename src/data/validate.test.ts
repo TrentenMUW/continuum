@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { draftToFields, validateDraft, type EventDraft } from "./validate";
+import { buildRepeatRule, draftToFields, NO_REPEAT, repeatFromRule, validateDraft, type EventDraft, type RepeatDraft } from "./validate";
 
 const LA = "America/Los_Angeles";
 const base: EventDraft = {
@@ -12,7 +12,59 @@ const base: EventDraft = {
   categoryIds: ["health"],
   description: "",
   location: "",
+  repeat: NO_REPEAT,
 };
+
+const repeat = (patch: Partial<RepeatDraft>): EventDraft => ({ ...base, repeat: { ...NO_REPEAT, touched: true, ...patch } });
+
+describe("repeat rules (§5.6)", () => {
+  it("builds daily, weekly, monthly, and yearly rules with an interval", () => {
+    expect(buildRepeatRule(repeat({ freq: "DAILY" }), LA)).toBe("FREQ=DAILY");
+    expect(buildRepeatRule(repeat({ freq: "WEEKLY", interval: "2", weekdays: ["WE", "MO"] }), LA)).toBe("FREQ=WEEKLY;INTERVAL=2;BYDAY=MO,WE");
+    expect(buildRepeatRule(repeat({ freq: "MONTHLY" }), LA)).toBe("FREQ=MONTHLY;BYMONTHDAY=24");
+    expect(buildRepeatRule(repeat({ freq: "YEARLY" }), LA)).toBe("FREQ=YEARLY");
+    expect(buildRepeatRule(base, LA)).toBeUndefined();
+  });
+
+  it("ends on a date (inclusive, through the end of that local day) or after a count", () => {
+    expect(buildRepeatRule(repeat({ freq: "DAILY", ends: "on", untilDate: "2026-12-31" }), LA)).toBe("FREQ=DAILY;UNTIL=20270101T075959Z");
+    expect(buildRepeatRule({ ...repeat({ freq: "DAILY", ends: "on", untilDate: "2026-12-31" }), allDay: true, startDate: "2026-10-24", endDate: "2026-10-24" }, LA)).toBe(
+      "FREQ=DAILY;UNTIL=20261231",
+    );
+    expect(buildRepeatRule(repeat({ freq: "DAILY", ends: "after", count: "10" }), LA)).toBe("FREQ=DAILY;COUNT=10");
+  });
+
+  it("keeps a stored rule verbatim when the controls weren't touched", () => {
+    const stored = "FREQ=WEEKLY;WKST=SU;BYDAY=TU";
+    const r = repeatFromRule(stored, LA);
+    expect(r).toMatchObject({ freq: "WEEKLY", weekdays: ["TU"], touched: false, custom: false });
+    expect(buildRepeatRule({ ...base, repeat: r }, LA)).toBe(stored);
+  });
+
+  it("reads UNTIL and COUNT back into the controls", () => {
+    expect(repeatFromRule("FREQ=DAILY;UNTIL=20270101T075959Z", LA)).toMatchObject({ ends: "on", untilDate: "2026-12-31" });
+    expect(repeatFromRule("FREQ=DAILY;COUNT=7", LA)).toMatchObject({ ends: "after", count: "7" });
+  });
+
+  it("marks rules the controls can't show as custom", () => {
+    expect(repeatFromRule("FREQ=MONTHLY;BYDAY=2TU", LA).custom).toBe(true);
+    expect(repeatFromRule("FREQ=YEARLY;BYMONTH=3", LA).custom).toBe(true);
+    expect(repeatFromRule("FREQ=WEEKLY;BYDAY=MO,FR", LA).custom).toBe(false);
+  });
+
+  it("validates interval, weekdays, end date, and count", () => {
+    expect(validateDraft(repeat({ freq: "DAILY", interval: "0" }), LA).repeat).toBeTruthy();
+    expect(validateDraft(repeat({ freq: "WEEKLY", weekdays: [] }), LA).repeat).toMatch(/day of the week/);
+    expect(validateDraft(repeat({ freq: "DAILY", ends: "on", untilDate: "2026-10-01" }), LA).repeat).toMatch(/before it starts/);
+    expect(validateDraft(repeat({ freq: "DAILY", ends: "after", count: "x" }), LA).repeat).toBeTruthy();
+    expect(validateDraft(repeat({ freq: "WEEKLY", weekdays: ["SA"] }), LA)).toEqual({});
+  });
+
+  it("draftToFields carries the rule with no EXDATEs", () => {
+    expect(draftToFields(repeat({ freq: "DAILY" }), LA).recurrence).toEqual({ rrule: "FREQ=DAILY", exdates: [] });
+    expect(draftToFields(base, LA).recurrence).toBeUndefined();
+  });
+});
 
 describe("validateDraft (§5.6)", () => {
   it("accepts a valid timed event", () => {

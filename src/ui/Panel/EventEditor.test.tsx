@@ -151,6 +151,79 @@ describe("event editor (§5.6)", () => {
   });
 });
 
+describe("recurring events (§5.6, D13)", () => {
+  it("creates a weekly series, edits one occurrence, then deletes another", async () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Add Event" }));
+    let p = panel();
+    fireEvent.change(within(p).getByLabelText("Title"), { target: { value: "Class" } });
+    fireEvent.change(within(p).getByLabelText("Start"), { target: { value: "2026-10-19T09:00" } });
+    fireEvent.change(within(p).getByLabelText("End"), { target: { value: "2026-10-19T10:00" } });
+    fireEvent.change(within(p).getByLabelText("Repeat"), { target: { value: "WEEKLY" } });
+    // Monday is preselected from the start date.
+    expect((within(p).getByLabelText("Mon") as HTMLInputElement).checked).toBe(true);
+    fireEvent.click(within(p).getByLabelText(/Education/));
+    fireEvent.click(within(p).getByRole("button", { name: "Add event" }));
+    await waitFor(() => expect(screen.queryByRole("complementary")).toBeNull());
+
+    const [series] = await db.events.toArray();
+    expect(series!.recurrence).toEqual({ rrule: "FREQ=WEEKLY;BYDAY=MO", exdates: [] });
+
+    // Open the Nov 2 occurrence: the form shows that occurrence's own time.
+    const KEY = "2026-11-02T17:00:00.000Z";
+    openPanel({ kind: "event", eventId: series!.id, occurrenceKey: KEY });
+    p = await screen.findByRole("complementary", { name: "Edit repeating event" });
+    expect((within(p).getByLabelText("Start") as HTMLInputElement).value).toBe("2026-11-02T09:00");
+    expect((within(p).getByLabelText(/^All day/) as HTMLInputElement).disabled).toBe(true);
+
+    fireEvent.change(within(p).getByLabelText("Start"), { target: { value: "2026-11-02T11:00" } });
+    fireEvent.change(within(p).getByLabelText("End"), { target: { value: "2026-11-02T12:00" } });
+    fireEvent.click(within(p).getByRole("button", { name: "Save" }));
+    const chooser = within(p).getByRole("group", { name: "Save to which occurrences" });
+    expect(within(chooser).getAllByRole("radio")).toHaveLength(3);
+    fireEvent.click(within(chooser).getByLabelText("This occurrence"));
+    fireEvent.click(within(chooser).getByRole("button", { name: "Save" }));
+    await waitFor(async () => expect(await db.events.count()).toBe(2));
+    const override = (await db.events.where("recurrenceParentId").equals(series!.id).first())!;
+    expect(override).toMatchObject({ recurrenceId: KEY, start: "2026-11-02T19:00:00.000Z" });
+
+    // Delete the Nov 9 occurrence only.
+    const KEY9 = "2026-11-09T17:00:00.000Z";
+    openPanel({ kind: "event", eventId: series!.id, occurrenceKey: KEY9 });
+    p = await screen.findByRole("complementary", { name: "Edit repeating event" });
+    fireEvent.click(within(p).getByRole("button", { name: "Delete" }));
+    const del = within(p).getByRole("group", { name: "Delete which occurrences" });
+    fireEvent.click(within(del).getByLabelText("This occurrence"));
+    fireEvent.click(within(del).getByRole("button", { name: "Delete" }));
+    await waitFor(async () => expect((await db.events.get(series!.id))!.recurrence!.exdates).toEqual([KEY9]));
+  });
+
+  it("hides 'This occurrence' once the repeat rule is changed", async () => {
+    const cat = readyState().categories[2]!.id;
+    const s = await createEvent(db, {
+      title: "Class",
+      allDay: false,
+      start: "2026-10-19T16:00:00.000Z",
+      end: "2026-10-19T17:00:00.000Z",
+      timeZone: "America/Los_Angeles",
+      categoryIds: [cat],
+      recurrence: { rrule: "FREQ=WEEKLY;BYDAY=MO", exdates: [] },
+      source: "manual",
+    });
+    resetAppStoreForTests();
+    await initApp(db);
+    await updateSettings({ timeZone: "America/Los_Angeles" });
+    render(<App />);
+    openPanel({ kind: "event", eventId: s.id, occurrenceKey: "2026-11-02T17:00:00.000Z" });
+    const p = await screen.findByRole("complementary", { name: "Edit repeating event" });
+    fireEvent.click(within(p).getByLabelText("Wed"));
+    fireEvent.click(within(p).getByRole("button", { name: "Save" }));
+    const chooser = within(p).getByRole("group", { name: "Save to which occurrences" });
+    expect(within(chooser).queryByLabelText("This occurrence")).toBeNull();
+    expect(within(chooser).getByLabelText("This and following")).toBeTruthy();
+  });
+});
+
 describe("category manager (§5.4)", () => {
   it("adds, renames, hides, and deletes with reassignment", async () => {
     render(<App />);

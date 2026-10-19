@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import type { Occurrence } from "../data/index";
 import { getAppState, initApp, openPanel, updateSettings, useAppState } from "../state/appStore";
 import { useLive, viewportStore } from "../state/viewportStore";
 import { SidePanel } from "./Panel/SidePanel";
@@ -6,7 +7,8 @@ import { Timeline } from "./Timeline/Timeline";
 import { Toolbar } from "./Toolbar/Toolbar";
 import styles from "./App.module.css";
 
-const selectEvent = (id: string) => openPanel({ kind: "event", eventId: id });
+const selectEvent = (o: Occurrence) =>
+  openPanel({ kind: "event", eventId: o.event.id, occurrenceKey: o.event.recurrence ? o.key : undefined });
 const editCategories = () => openPanel({ kind: "categories" });
 
 export function App() {
@@ -28,7 +30,13 @@ export function App() {
     if (s.status === "ready") void updateSettings({ snapEnabled: !s.settings.snapEnabled });
   };
 
-  const selectedId = ready?.panel.kind === "event" ? ready.panel.eventId : null;
+  // Matches occurrenceId(): series occurrences are "id@key".
+  const selectedId =
+    ready?.panel.kind === "event" && ready.panel.eventId
+      ? ready.panel.occurrenceKey
+        ? `${ready.panel.eventId}@${ready.panel.occurrenceKey}`
+        : ready.panel.eventId
+      : null;
 
   return (
     <div className={styles.app}>

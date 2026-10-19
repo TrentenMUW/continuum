@@ -101,3 +101,44 @@ Format: what I asked → what changed / what the AI got wrong.
 - Answered the D10 question: add a minimum darkness of about 1/4 → any column with activity now draws at an opacity of at least 0.25, and busier columns keep their true fraction. Updated D10 in SPEC.md.
   - **AI got wrong:** the floor exposed a hidden floating-point bug. An interval ending exactly on a column boundary computed as 3.9999999 px, leaving a ~1e-7 sliver in the previous column. Rounding used to hide it, but the floor turned it into a visible extra column. Fixed by snapping edges within 1e-6 px to the boundary. Three existing tests caught it.
   - 108 tests pass.
+
+### Oct 18, 2026: Stage 5, recurrence
+- Asked to begin Stage 5 (I didn't separately report the Stage 4 hand check).
+- **Probing ical.js first paid off:**
+  - Its iterator rolls invalid dates over: a yearly Feb 29 series gave 2029-03-01, 2030-03-01, …, but RFC 5545 says to skip them.
+  - Explicit `BYMONTH`/`BYMONTHDAY` fixes that, but only when iteration starts on a valid date.
+  - So expansion makes yearly and monthly rules explicit and also filters anything that breaks them.
+  - It costs ~12 µs per occurrence, so daily/weekly rules without COUNT jump ahead (keeping the interval's phase) instead of iterating from 2026 every time.
+- `src/time/localTime.ts` handles wall-clock → instant per D3:
+  - nonexistent spring-forward times move forward by the gap
+  - ambiguous fall-back times take the first occurrence
+  - tested in Pacific, Kolkata (+5:30), and Sydney (southern hemisphere)
+- `src/time/recurrence.ts`:
+  - ical.js iterates floating wall times, and each one converts in the event's own zone. Timed occurrences keep their wall-clock length, so "Sleep 23:00–07:00" stays 23:00–07:00 even on the 25-hour night.
+  - UNTIL is enforced in the right zone.
+  - EXDATEs are honored, and COUNT counts EXDATE'd occurrences (RFC).
+  - A per-series LRU cache keyed by power-of-two window buckets (§7).
+- Overrides are stored as normal records with `recurrenceParentId`/`recurrenceId`. The index draws them as one-offs and hides the occurrence they replace.
+- D13 scopes (`src/data/repo/recurrence.ts`), each in one transaction:
+  - **This occurrence:** an edit creates or updates an override, and a delete adds an EXDATE (dropping any override).
+  - **This and following:** sets UNTIL just before the occurrence and starts a new series there. A COUNT carries over as what's left, and later EXDATEs and overrides move to the new series.
+  - **All:** applies the clicked occurrence's change in wall-clock time to the series start, and shifts EXDATEs and override keys by the same amount.
+  - "Following" from the first occurrence behaves as "All".
+- UI:
+  - Repeat controls (daily / weekly with weekday checkboxes / monthly by day / yearly, an interval, and ends never / on date / after N).
+  - Clicking an occurrence opens that occurrence's own times. Save and Delete then ask for a scope. "This occurrence" is hidden once the rule is changed, since an override can't have its own rule.
+  - Stored rules the controls can't express (e.g. from imports) are shown as "Custom rule" and kept verbatim unless replaced.
+  - **Deviation:** the All-day checkbox is locked while editing a repeating event, because converting a whole series between timed and all-day has no clean meaning for its exceptions.
+- **AI got wrong:**
+  - Two recurrence-repo test expectations passed the series start instead of the occurrence's own time, so the tests asked for something no user would do. The code was right.
+  - A day-window off-by-one in COUNT-before-split for all-day series was caught by reading the code before it shipped.
+  - The new delete flow briefly showed the scope list for one-off events too; fixed before testing.
+- **Performance problem found and fixed:** in the browser, zooming out to 150 years with one endless daily series froze the page for up to **4.2 s** (≈160,000 occurrences through ical.js). Now, once a pixel column spans at least one full gap of a simple DAILY/WEEKLY rule without COUNT, the index returns a single coverage band at the series' average share of time instead of every occurrence. A test checks that this matches full expansion within one opacity step per column, and EXDATEs are ignored at that scale. After the fix: zooming out to the maximum had a 118 ms worst frame (9 frames over 50 ms in the in-between range just before the band takes over), and panning at maximum zoom-out peaked at 14 ms. The remaining hitch is for the Stage 8 benchmark.
+- Checked in the browser:
+  - A weekly Monday 9:00 class showed 09:00 on every Monday from Oct 19 to Dec 14, on both sides of Nov 1.
+  - Deleting Nov 9 removed only that occurrence. Moving Nov 16 to 11:00 moved only that one, and its form opened at 09:00, the occurrence's own time.
+  - "This and following" from Nov 30 renamed and moved Nov 30, Dec 7, and Dec 14 to 10:00 and left the earlier ones alone.
+  - With an endless daily run, panning across Nov 2060 → May 2062 ran at a 6.9 ms median frame and a 34.7 ms worst, with none over 50 ms.
+  - Test data cleared afterward.
+- Testing note: a hidden browser pane pauses `requestAnimationFrame`, so the app can't be checked there.
+- 160 tests pass, typecheck clean, build OK.

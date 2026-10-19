@@ -187,6 +187,52 @@
   margin: 0;
 }
 
+.scope {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+}
+
+.scope p {
+  margin: 0;
+}
+
+.inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.form input.short {
+  width: 4.5em;
+}
+
+.weekdays {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.weekday {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.ends {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ends input[type="date"] {
+  width: auto;
+}
+
 .categoryList {
   display: flex;
   flex-direction: column;

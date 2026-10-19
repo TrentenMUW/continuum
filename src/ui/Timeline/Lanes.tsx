@@ -1,4 +1,5 @@
 import { memo, useId, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import { occurrenceId, type Occurrence } from "../../data/index";
 import type { Category } from "../../data/types";
 import { useLayerTransform, viewportStore } from "../../state/viewportStore";
 import { LANE_PAD, ROW_HEIGHT, rowY, type LaneLayout, type PlacedRect } from "../../time/lanes";
@@ -17,8 +18,9 @@ interface LanesProps {
   milestones: PlacedMilestone[];
   pastOpacity: number;
   zone: string;
+  /** occurrenceId() of the selected occurrence. */
   selectedId: string | null;
-  onSelect: (eventId: string) => void;
+  onSelect: (occ: Occurrence) => void;
 }
 
 export const Lanes = memo(function Lanes({
@@ -77,12 +79,12 @@ export const Lanes = memo(function Lanes({
                 ))}
                 {lane.rects.map((r) => (
                   <EventShape
-                    key={r.occ.event.id}
+                    key={occurrenceId(r.occ)}
                     rect={r}
                     y={rowY(lane.top, r.row)}
                     color={color}
                     label={describeOccurrence(r.occ, zone)}
-                    selected={r.occ.event.id === selectedId}
+                    selected={occurrenceId(r.occ) === selectedId}
                     onSelect={onSelect}
                   />
                 ))}
@@ -115,17 +117,16 @@ interface EventShapeProps {
   color: string;
   label: string;
   selected: boolean;
-  onSelect: (eventId: string) => void;
+  onSelect: (occ: Occurrence) => void;
 }
 
 /** One appearance of an event in one lane: focusable, labeled, with a hover tooltip (§5.11). */
 function EventShape({ rect, y, color, label, selected, onSelect }: EventShapeProps) {
-  const id = rect.occ.event.id;
   const onKeyDown = (e: KeyboardEvent<SVGGElement>) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       e.stopPropagation();
-      onSelect(id);
+      onSelect(rect.occ);
     }
   };
   return (
@@ -135,7 +136,7 @@ function EventShape({ rect, y, color, label, selected, onSelect }: EventShapePro
       tabIndex={0}
       aria-label={label}
       aria-pressed={selected}
-      onClick={() => onSelect(id)}
+      onClick={() => onSelect(rect.occ)}
       onKeyDown={onKeyDown}
     >
       <title>{label}</title>

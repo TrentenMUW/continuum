@@ -75,8 +75,10 @@ export function layoutLanes(
     const occs = byCategory.get(categoryId)!;
     const wide: Occurrence[] = [];
     const narrow: Array<[number, number]> = [];
+    const bands: Array<{ start: number; end: number; coverage: number }> = [];
     for (const o of occs) {
-      if ((o.end - o.start) * rw.scale < MIN_RECT_PX) narrow.push([o.start, o.end]);
+      if (o.coverage !== undefined) bands.push({ start: o.start, end: o.end, coverage: o.coverage });
+      else if ((o.end - o.start) * rw.scale < MIN_RECT_PX) narrow.push([o.start, o.end]);
       else wide.push(o);
     }
     const { rows, rowCount } = assignRows(wide);
@@ -87,7 +89,7 @@ export function layoutLanes(
       return { occ, x: x0, width: x1 - x0, row: rows[i]!, showTitle: fullWidth > MIN_TITLE_PX };
     });
     const height = laneHeight(rowCount);
-    lanes.push({ categoryId, top, height, rowCount: Math.max(1, rowCount), rects, density: densityRuns(narrow, rw) });
+    lanes.push({ categoryId, top, height, rowCount: Math.max(1, rowCount), rects, density: densityRuns(narrow, rw, bands) });
     top += height;
   }
   return { lanes, totalHeight: top };

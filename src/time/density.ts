@@ -42,22 +42,29 @@ export function mergeIntervals(intervals: ReadonlyArray<readonly [number, number
  * Short events are never widened: a 5-minute event still occupies only its own column,
  * which is drawn at MIN_DENSITY_OPACITY rather than its true ~0.0005 coverage.
  */
-export function densityRuns(intervals: ReadonlyArray<readonly [number, number]>, rw: RenderWindow): DensityRun[] {
-  if (intervals.length === 0) return [];
+export function densityRuns(
+  intervals: ReadonlyArray<readonly [number, number]>,
+  rw: RenderWindow,
+  /** Whole-series bands that cover a fraction of their span on average (see seriesCoverage). */
+  bands: ReadonlyArray<{ start: number; end: number; coverage: number }> = [],
+): DensityRun[] {
+  if (intervals.length === 0 && bands.length === 0) return [];
   const c0 = Math.floor(layerX(rw, rw.winStart));
   const c1 = Math.ceil(layerX(rw, rw.winEnd));
   const cols = c1 - c0;
   if (cols <= 0) return [];
   const cov = new Float64Array(cols);
 
-  for (const [s, e] of mergeIntervals(intervals)) {
+  const add = (s: number, e: number, weight: number) => {
     const p0 = Math.max(0, snapToColumn(layerX(rw, s) - c0));
     const p1 = Math.min(cols, snapToColumn(layerX(rw, e) - c0));
-    if (p1 <= p0) continue;
+    if (p1 <= p0) return;
     for (let col = Math.floor(p0); col < Math.ceil(p1); col++) {
-      cov[col]! += Math.min(p1, col + 1) - Math.max(p0, col);
+      cov[col]! += weight * (Math.min(p1, col + 1) - Math.max(p0, col));
     }
-  }
+  };
+  for (const [s, e] of mergeIntervals(intervals)) add(s, e, 1);
+  for (const b of bands) add(b.start, b.end, b.coverage);
 
   const runs: DensityRun[] = [];
   for (let col = 0; col < cols; col++) {
