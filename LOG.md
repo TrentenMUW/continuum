@@ -65,3 +65,4 @@ Format: what I asked → what changed / what the AI got wrong.
   - Pan → LIVE off, Return to Now → LIVE on with Now at exactly 25.00%, arrow key → off, N → on.
   - The temporary 4-hour event spanning Now was translucent before the marker and solid after. It was removed before the stage ended, as the spec requires.
 - 60 tests pass, typecheck clean, build OK.
+- Approved the live-mode zoom interpretation: zoom centers on the Now marker while live, and on the cursor otherwise.
