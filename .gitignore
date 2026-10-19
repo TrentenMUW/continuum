@@ -1,0 +1,13 @@
+node_modules/
+dist/
+coverage/
+playwright-report/
+test-results/
+.env*
+.DS_Store
+# Personal data never goes in the repo
+*.ics
+*.csv
+*.pdf
+continuum-backup*.json
+!tests/fixtures/**
