@@ -162,3 +162,49 @@ Format: what I asked → what changed / what the AI got wrong.
   - Clicking its line opened the editor, and Delete → "Delete milestone" removed it, leaving only the seeded 2065 milestone.
 - Tests cover a past-dated achievement staying incomplete until marked, date-based derivation, and deleting the 2065 milestone surviving a restart (repository level and UI).
 - 173 tests pass, typecheck clean, build OK.
+- Verified Stage 6 by hand ("all tests passed").
+
+### Oct 18–19, 2026: Stage 7, import and export
+- Asked for Stage 7 → probed ical.js first. It gives wall-clock fields plus the TZID parameter, marks UTC as `zone: 'UTC'`, exposes DURATION, returns EXDATE values per line, and throws on malformed files.
+- Fake fixtures in `tests/fixtures/`, all invented, no real data:
+  - a Google export (TZID, UTC, all-day, a weekly series with an EXDATE, a moved occurrence, and a cancelled occurrence)
+  - an Outlook export (a quoted and an unquoted Windows TZID, plus an unknown zone defined only by VTIMEZONE)
+  - a recurring series with exceptions (several EXDATE lines, two overrides, RDATE)
+  - all-day and multi-day events (including no DTEND and a yearly Feb 29 series)
+  - rows that should be skipped
+  - a malformed .ics
+  - CSVs, good and bad
+  Checked that `.gitignore` lets fixtures through but still ignores a stray `.ics` elsewhere.
+- `src/import/ics.ts`:
+  - D15 zones: an IANA name is used directly, a table of 41 common Windows names (CLDR) is mapped, anything else falls back to the file's VTIMEZONE with a warning, and floating times use the display zone.
+  - EXDATE and RECURRENCE-ID become occurrence keys in the series' own terms.
+  - RDATE is listed as unsupported. HOURLY and finer rules, missing starts, and ends before starts are skipped with reasons, and a missing UID gets a stable synthetic one.
+- `src/import/csv.ts` implements the §5.9 format (papaparse):
+  - spreadsheet-style row numbers
+  - timed rows must carry an offset, and impossible dates like Feb 30 are rejected
+  - all-day ends are inclusive and may be empty
+  - categories are matched case-insensitively, and unknown ones are collected
+  - rrules are checked with ical.js
+  - any bad row blocks the whole import
+- `src/import/preview.ts`, D14:
+  - Each candidate is classified new / updated / unchanged / skipped (with a reason) on `(externalUid, recurrenceId)`.
+  - Commits run in one Dexie transaction: series first, then overrides and cancellations.
+  - Updated events keep their categories, and occurrences deleted locally stay deleted after a re-import (EXDATEs are merged).
+  - Cancelled occurrences add an EXDATE, and a cancelled whole event deletes the stored copy.
+  - A simulated failure part-way leaves 0 events.
+  - **Small interpretation:** a cancellation of something that exists counts as "updated" (with the reason "cancelled"), to stay within the spec's four categories.
+- `src/data/backup.ts`: export in the documented shape and file name. Restore validates shape, schema version, category references, and event times, shows counts, needs an explicit checkbox, replaces everything in one transaction, and marks the database seeded so deleted seed data can't return.
+- UI: Import opens a side panel (.ics / .csv / .json) with counts, a date range, a sample, skip reasons, warnings, and a category picker (ICS) or an unknown-category choice (CSV). Export downloads `continuum-backup-YYYY-MM-DD.json`.
+- **AI got wrong:**
+  - Two import-test expectations: my edited file moved a start past its end, and I used the wrong UTC date for an 18:00 PDT occurrence.
+  - Fixture paths broke under jsdom's `import.meta.url`.
+  - In the browser, the preview's date range ended at a series' *first* occurrence ("to 25 Nov") instead of its last ("to 23 Dec"). Fixed: finite series expand to find their last end, and endless ones are flagged.
+  - "1 milestones" in the restore summary.
+- Checked in the browser, using your real dev data:
+  - Export captured exactly 2 events / 8 categories / 1 milestone.
+  - Importing the fake Google file previewed 5 new + 1 updated and committed. Re-importing showed 6 unchanged and 0 new.
+  - A bad CSV listed rows 3–7 with reasons, had no Import button, and wrote nothing.
+  - Restore stayed disabled until confirmed, then brought back exactly "graduation" and "test2".
+  - A dev hot reload wiped my in-page copy of the backup partway, so I first removed the imported records by `source: "ics"` (your two events were never touched), then reran the full export → import → restore flow in one pass.
+- Build note: the bundle is now over 500 kB (ical.js and papaparse). That's a warning, not an error, and is for Stage 8 (code-split the import code).
+- 218 tests pass, typecheck clean, build OK.

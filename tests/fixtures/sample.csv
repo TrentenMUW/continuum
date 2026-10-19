@@ -1,0 +1,6 @@
+title,start,end,allDay,description,location,categories,rrule
+Morning run,2026-10-20T07:00:00-07:00,2026-10-20T07:45:00-07:00,false,,Green Lake,Health & Exercise,
+Dentist,2026-11-03,2026-11-03,true,,,Life & Logistics;Health & Exercise,
+Study group,2026-10-21T18:00:00-07:00,2026-10-21T20:00:00-07:00,false,Linear algebra,,Education;Social & Relationships,FREQ=WEEKLY;COUNT=10
+Pottery class,2026-10-24T10:00:00-07:00,2026-10-24T12:00:00-07:00,false,,,pottery,
+Long weekend,2026-11-27,2026-11-29,true,,,MISCELLANEOUS,

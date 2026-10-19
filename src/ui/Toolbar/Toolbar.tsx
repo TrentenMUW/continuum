@@ -10,10 +10,24 @@ interface ToolbarProps {
   onZoomOut: () => void;
   onToggleSnap: () => void;
   onReturnToNow: () => void;
+  onImport: () => void;
+  onExport: () => void;
 }
 
 /** §5.11 toolbar. Controls are disabled until the stage that implements them. */
-export function Toolbar({ live, ready, snapEnabled, onAddEvent, onAddMilestone, onZoomIn, onZoomOut, onToggleSnap, onReturnToNow }: ToolbarProps) {
+export function Toolbar({
+  live,
+  ready,
+  snapEnabled,
+  onAddEvent,
+  onAddMilestone,
+  onZoomIn,
+  onZoomOut,
+  onToggleSnap,
+  onReturnToNow,
+  onImport,
+  onExport,
+}: ToolbarProps) {
   return (
     <header className={styles.toolbar} role="toolbar" aria-label="Continuum controls">
       <h1 className={styles.title}>Continuum</h1>
@@ -59,10 +73,10 @@ export function Toolbar({ live, ready, snapEnabled, onAddEvent, onAddMilestone, 
       </div>
 
       <div className={`${styles.group} ${styles.end}`}>
-        <button type="button" disabled title="Coming in Stage 7">
+        <button type="button" disabled={!ready} onClick={onImport} title="Import .ics or .csv, or restore a backup">
           Import
         </button>
-        <button type="button" disabled title="Coming in Stage 7">
+        <button type="button" disabled={!ready} onClick={onExport} title="Download a full JSON backup">
           Export
         </button>
         <button type="button" disabled title="Coming in Stage 8">

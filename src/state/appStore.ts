@@ -19,6 +19,9 @@ import {
 } from "../data/repo/milestones";
 import { loadSettings, saveSettings } from "../data/repo/settings";
 import { seedIfNeeded } from "../data/seed";
+import { backupFilename, exportBackup, restoreBackup, type Backup } from "../data/backup";
+import type { CsvParse } from "../import/csv";
+import { commitCsv, commitIcsPlan, type ImportPlan } from "../import/preview";
 import type { AppSettings, CalendarEvent, Category, Milestone } from "../data/types";
 import { resolveDisplayZone } from "../time/zones";
 
@@ -30,6 +33,7 @@ export type Panel =
   | { kind: "none" }
   | { kind: "event"; eventId: string | null; occurrenceKey?: string }
   | { kind: "milestone"; milestoneId: string | null }
+  | { kind: "import" }
   | { kind: "categories" };
 
 export interface ReadyState {
@@ -236,6 +240,50 @@ async function reloadCategories(): Promise<void> {
   const { db } = ready();
   const categories = await listCategories(db);
   setState({ ...ready().s, categories });
+}
+
+/** Apply an .ics import plan (D14). New events go into `categoryId`. */
+export async function importIcs(plan: ImportPlan, categoryId: string): Promise<void> {
+  await commitIcsPlan(ready().db, plan, categoryId);
+  await reloadEvents();
+  requestPersistence();
+}
+
+/** Import validated CSV rows (§5.9). */
+export async function importCsv(parse: CsvParse, unknownCategories: "create" | "misc"): Promise<void> {
+  await commitCsv(ready().db, parse, unknownCategories);
+  await reloadCategoriesAndEvents();
+  requestPersistence();
+}
+
+/** The current data as a backup file (§5.10). */
+export async function backupFile(): Promise<{ filename: string; json: string }> {
+  const backup = await exportBackup(ready().db);
+  return { filename: backupFilename(), json: JSON.stringify(backup, null, 2) };
+}
+
+/** Replace all data with a validated backup, then reload everything (§5.10). */
+export async function restoreFrom(backup: Backup): Promise<void> {
+  const { db } = ready();
+  await restoreBackup(db, backup);
+  const [settings, categories, milestones, events] = await Promise.all([
+    loadSettings(db),
+    listCategories(db),
+    listMilestones(db),
+    listEvents(db),
+  ]);
+  const zone = resolveDisplayZone(settings.timeZone);
+  const cur = ready().s;
+  setState({
+    ...cur,
+    settings,
+    zone,
+    categories,
+    milestones,
+    events: new Map(events.map((e) => [e.id, e])),
+    index: new EventIndex(events, zone),
+    eventsVersion: cur.eventsVersion + 1,
+  });
 }
 
 async function reloadMilestones(): Promise<void> {

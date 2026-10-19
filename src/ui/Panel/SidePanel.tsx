@@ -5,6 +5,7 @@ import { startOfCalDate } from "../../time/calDate";
 import { expandSeries } from "../../time/recurrence";
 import { CategoryManager } from "./CategoryManager";
 import { EventEditor, type OccurrenceContext } from "./EventEditor";
+import { ImportPanel } from "./ImportPanel";
 import { MilestoneEditor } from "./MilestoneEditor";
 import styles from "./Panel.module.css";
 
@@ -31,7 +32,9 @@ export function SidePanel({ state }: { state: ReadyState }) {
   const title =
     panel.kind === "categories"
       ? "Categories"
-      : panel.kind === "milestone"
+      : panel.kind === "import"
+        ? "Import or restore"
+        : panel.kind === "milestone"
         ? milestone
           ? "Edit milestone"
           : "New milestone"
@@ -64,6 +67,7 @@ export function SidePanel({ state }: { state: ReadyState }) {
         {panel.kind === "milestone" && (
           <MilestoneEditor key={panel.milestoneId ?? "new"} milestone={milestone} zone={state.zone} now={viewportStore.now()} />
         )}
+        {panel.kind === "import" && <ImportPanel state={state} />}
         {panel.kind === "categories" && <CategoryManager categories={state.categories} events={state.events} />}
       </div>
     </aside>

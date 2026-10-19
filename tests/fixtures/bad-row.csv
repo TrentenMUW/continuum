@@ -1,0 +1,7 @@
+title,start,end,allDay,description,location,categories,rrule
+Fine row,2026-10-20T07:00:00-07:00,2026-10-20T07:45:00-07:00,false,,,Health & Exercise,
+No offset,2026-10-21T07:00:00,2026-10-21T08:00:00,false,,,Health & Exercise,
+Bad date,2026-02-30,2026-02-30,true,,,Miscellaneous,
+Backwards,2026-10-22T09:00:00-07:00,2026-10-22T08:00:00-07:00,false,,,Miscellaneous,
+,2026-10-23T09:00:00-07:00,2026-10-23T10:00:00-07:00,false,,,Miscellaneous,
+Bad rule,2026-10-24T09:00:00-07:00,2026-10-24T10:00:00-07:00,false,,,Miscellaneous,FREQ=SOMETIMES

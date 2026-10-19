@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import type { Occurrence } from "../data/index";
 import type { Milestone } from "../data/types";
-import { getAppState, initApp, openPanel, updateSettings, useAppState } from "../state/appStore";
+import { backupFile, getAppState, initApp, openPanel, updateSettings, useAppState } from "../state/appStore";
+import { downloadText } from "./download";
 import { useLive, viewportStore } from "../state/viewportStore";
 import { SidePanel } from "./Panel/SidePanel";
 import { Timeline } from "./Timeline/Timeline";
@@ -48,6 +49,8 @@ export function App() {
         snapEnabled={snapEnabled}
         onAddEvent={() => openPanel({ kind: "event", eventId: null })}
         onAddMilestone={() => openPanel({ kind: "milestone", milestoneId: null })}
+        onImport={() => openPanel({ kind: "import" })}
+        onExport={() => void backupFile().then(({ filename, json }) => downloadText(filename, json))}
         onReturnToNow={() => viewportStore.returnToNow()}
         onZoomIn={() => viewportStore.zoomButton(1)}
         onZoomOut={() => viewportStore.zoomButton(-1)}
