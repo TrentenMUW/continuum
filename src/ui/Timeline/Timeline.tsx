@@ -1,6 +1,7 @@
 ﻿import { TZDate } from "@date-fns/tz";
 import { format } from "date-fns";
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
+import { isBenchmarkMode } from "../../data/benchmark";
 import type { EventIndex, Occurrence } from "../../data/index";
 import type { AppSettings, Category, Milestone } from "../../data/types";
 import { moveMilestone } from "../../state/appStore";
@@ -130,7 +131,7 @@ export function Timeline({
   }, []);
 
   // Ticks depend only on the render window, so panning inside the buffer reuses them.
-  const ticks = useMemo(() => (rw ? rulerTicks(rw.scale, rw.winStart, rw.winEnd, zone) : null), [rw, zone]);
+  const ticks = useMemo(() => (rw ? measured("ticks", () => rulerTicks(rw.scale, rw.winStart, rw.winEnd, zone)) : null), [rw, zone]);
 
   const milestoneDrag = useMilestoneDrag(plotRef, zone, onOpenMilestone);
 
@@ -159,12 +160,12 @@ export function Timeline({
 
   // Query and lay out only the buffered window (D4, D5, §7); panning inside it reuses this.
   const occurrences = useMemo(
-    () => (rw ? index.query(rw.winStart, rw.winEnd, 1 / rw.scale) : []),
+    () => (rw ? measured("query", () => index.query(rw.winStart, rw.winEnd, 1 / rw.scale)) : []),
     // eventsVersion changes whenever the index is patched in place.
     [rw, index, eventsVersion],
   );
   const layout = useMemo(
-    () => (rw ? layoutLanes(occurrences, visibleCategories.map((c) => c.id), rw) : null),
+    () => (rw ? measured("layout", () => layoutLanes(occurrences, visibleCategories.map((c) => c.id), rw)) : null),
     [occurrences, visibleCategories, rw],
   );
 
@@ -206,6 +207,17 @@ export function Timeline({
       <NowMarker zone={zone} />
     </div>
   );
+}
+
+const MEASURE = isBenchmarkMode();
+
+/** In ?benchmark mode only, record how long each step takes (read with performance.getEntriesByType("measure")). */
+function measured<T>(name: string, fn: () => T): T {
+  if (!MEASURE) return fn();
+  const t0 = performance.now();
+  const out = fn();
+  performance.measure(`continuum:${name}`, { start: t0, end: performance.now() });
+  return out;
 }
 
 const DRAG_THRESHOLD_PX = 3;

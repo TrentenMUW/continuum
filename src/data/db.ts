@@ -22,8 +22,11 @@ export class ContinuumDB extends Dexie {
 
 let instance: ContinuumDB | undefined;
 
-/** The app's database. Tests construct their own ContinuumDB with a unique name instead. */
-export function getDb(): ContinuumDB {
-  instance ??= new ContinuumDB();
+/**
+ * The app's database (or, with a name, e.g. the separate benchmark database).
+ * Tests construct their own ContinuumDB with a unique name instead.
+ */
+export function getDb(name: string = DB_NAME): ContinuumDB {
+  instance ??= new ContinuumDB(name);
   return instance;
 }

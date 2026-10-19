@@ -62,6 +62,11 @@ export function App() {
             Couldn't open local storage: {errorMessage}
           </p>
         )}
+        {ready?.benchmark && (
+          <p role="note" className={styles.banner}>
+            Benchmark mode: 1,000 sample events and 50 repeating series in a separate database. Your own data isn't shown or changed.
+          </p>
+        )}
         {ready && (
           <>
             <div className={styles.timelineArea}>

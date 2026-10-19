@@ -19,6 +19,7 @@ import {
 } from "../data/repo/milestones";
 import { loadSettings, saveSettings } from "../data/repo/settings";
 import { seedIfNeeded } from "../data/seed";
+import { BENCHMARK_DB_NAME, generateBenchmark, isBenchmarkMode } from "../data/benchmark";
 import { backupFilename, exportBackup, restoreBackup, type Backup } from "../data/backup";
 import type { CsvParse } from "../import/csv";
 import { commitCsv, commitIcsPlan, type ImportPlan } from "../import/preview";
@@ -47,6 +48,8 @@ export interface ReadyState {
   index: EventIndex;
   eventsVersion: number;
   panel: Panel;
+  /** Opened with ?benchmark: sample data in a separate database (§7). */
+  benchmark: boolean;
 }
 
 export type AppState = { status: "loading" } | { status: "error"; message: string } | ReadyState;
@@ -79,11 +82,15 @@ let activeDb: ContinuumDB | undefined;
 let persistRequested = false;
 
 /** Open the database, seed on first run (D2), and load settings and records. Idempotent. */
-export function initApp(db: ContinuumDB = getDb()): Promise<void> {
+export function initApp(db: ContinuumDB = isBenchmarkMode() ? getDb(BENCHMARK_DB_NAME) : getDb()): Promise<void> {
   activeDb ??= db;
   initPromise ??= (async () => {
     try {
       await seedIfNeeded(db);
+      if (db.name === BENCHMARK_DB_NAME && (await db.events.count()) === 0) {
+        const zone = resolveDisplayZone((await loadSettings(db)).timeZone);
+        await db.events.bulkAdd(generateBenchmark(await listCategories(db), zone, Date.now()));
+      }
       const [settings, categories, milestones, events] = await Promise.all([
         loadSettings(db),
         listCategories(db),
@@ -101,6 +108,7 @@ export function initApp(db: ContinuumDB = getDb()): Promise<void> {
         index: new EventIndex(events, zone),
         eventsVersion: 0,
         panel: { kind: "none" },
+        benchmark: db.name === BENCHMARK_DB_NAME,
       });
     } catch (err) {
       setState({ status: "error", message: err instanceof Error ? err.message : String(err) });

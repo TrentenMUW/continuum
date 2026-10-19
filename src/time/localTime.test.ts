@@ -1,5 +1,27 @@
 import { describe, expect, it } from "vitest";
-import { wallOf, wallToInstant, type WallTime } from "./localTime";
+import { tzOffset } from "@date-fns/tz";
+import { offsetAt, wallOf, wallToInstant, type WallTime } from "./localTime";
+
+describe("offsetAt (cached offsets)", () => {
+  it("matches tzOffset exactly, including at and around every transition", () => {
+    const zones = ["America/Los_Angeles", "Europe/London", "Australia/Sydney", "Asia/Kolkata", "America/Sao_Paulo", "Pacific/Chatham", "UTC"];
+    let seed = 7;
+    const rand = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+    for (const zone of zones) {
+      for (let i = 0; i < 1500; i++) {
+        const t = Date.UTC(1975, 0, 1) + Math.floor(rand() * 125 * 365.25 * 86_400_000);
+        expect(offsetAt(zone, t), `${zone} @ ${new Date(t).toISOString()}`).toBe(tzOffset(zone, new Date(t)));
+      }
+      // Exactly at the 2026 transitions, and one millisecond either side.
+      for (const iso of ["2026-03-08T10:00:00Z", "2026-11-01T09:00:00Z", "2026-03-29T01:00:00Z", "2026-10-25T01:00:00Z", "2026-04-04T16:00:00Z", "2026-10-03T16:00:00Z"]) {
+        for (const d of [-1, 0, 1]) {
+          const t = Date.parse(iso) + d;
+          expect(offsetAt(zone, t), `${zone} @ ${iso}${d}`).toBe(tzOffset(zone, new Date(t)));
+        }
+      }
+    }
+  });
+});
 
 const LA = "America/Los_Angeles";
 const w = (year: number, month: number, day: number, hour: number, minute = 0): WallTime => ({ year, month, day, hour, minute, second: 0 });

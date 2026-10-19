@@ -100,6 +100,8 @@ export function expandSeries(
   to: number,
   displayZone: string,
   skipKeys: ReadonlySet<string> = new Set(),
+  /** "ical" forces ical.js for every rule (the reference the fast path is tested against). */
+  engine: "auto" | "ical" = "auto",
 ): ExpandedOccurrence[] {
   if (!series.recurrence) return [];
   const shape = shapeOf(series);
@@ -109,46 +111,18 @@ export function expandSeries(
   const until = parseUntil(parseRRule(series.recurrence.rrule).get("UNTIL"));
   const exdates = new Set(series.recurrence.exdates);
 
-  // Jump ahead for daily/weekly rules without COUNT, keeping the interval's phase, so a
-  // window in 2060 doesn't iterate every day since 2026. Monthly/yearly are cheap anyway,
-  // and ical.js mis-handles a start that doesn't match their BY-rules (see normalizedRule).
-  let iterStart = shape.startWall;
-  const freq = parts.get("FREQ");
-  const interval = Math.max(1, Number(parts.get("INTERVAL") ?? 1));
-  if (!parts.has("COUNT") && !parts.has("BYSETPOS") && (freq === "DAILY" || freq === "WEEKLY")) {
-    const period = interval * (freq === "WEEKLY" ? 7 : 1);
-    const zone = shape.allDay ? displayZone : series.timeZone;
-    // Earliest start that could still overlap the window, with a day of slack for zone offsets.
-    const target = wallOf(from - shape.wallDurationMs - 2 * DAY_MS, zone);
-    const startMidnight = Date.UTC(shape.startWall.year, shape.startWall.month - 1, shape.startWall.day);
-    const k = Math.floor(daysBetween(startMidnight, Date.UTC(target.year, target.month - 1, target.day)) / period);
-    if (k > 0) iterStart = wallFromUtc(wallAsUtc(shape.startWall) + k * period * DAY_MS);
-  }
+  // Earliest start that could still overlap the window, with slack for zone offsets.
+  // Used to jump ahead (never with COUNT, which counts from the series start).
+  const zone = shape.allDay ? displayZone : series.timeZone;
+  const target = parts.has("COUNT") ? null : wallOf(from - shape.wallDurationMs - 2 * DAY_MS, zone);
 
-  const dtstart = ICAL.Time.fromData({
-    year: iterStart.year,
-    month: iterStart.month,
-    day: iterStart.day,
-    hour: iterStart.hour,
-    minute: iterStart.minute,
-    second: iterStart.second,
-    isDate: shape.allDay,
-  });
-  const it = ICAL.Recur.fromString(rule).iterator(dtstart);
+  const nextWall = (engine === "auto" && fastWalls(parts, shape.startWall, target)) || icalWalls(rule, parts, shape, target);
 
   const out: ExpandedOccurrence[] = [];
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const next = it.next();
+    const next = nextWall();
     if (!next) break;
-    if (!matchesExplicitParts(parts, next.month, next.day)) continue;
-    const wall: WallTime = {
-      year: next.year,
-      month: next.month,
-      day: next.day,
-      hour: shape.allDay ? 0 : next.hour,
-      minute: shape.allDay ? 0 : next.minute,
-      second: shape.allDay ? 0 : next.second,
-    };
+    const wall: WallTime = shape.allDay ? { ...next, hour: 0, minute: 0, second: 0 } : next;
 
     let occ: ExpandedOccurrence;
     if (shape.allDay) {
@@ -168,6 +142,143 @@ export function expandSeries(
     out.push(occ);
   }
   return out;
+}
+
+type WallSource = () => WallTime | null;
+
+/**
+ * ical.js as the iterator (D3): floating wall times, with the daily/weekly jump-ahead.
+ * Monthly/yearly always start from DTSTART: ical.js mis-handles a start that doesn't match
+ * their BY-rules (see normalizedRule), and they're cheap anyway.
+ */
+function icalWalls(rule: string, parts: Map<string, string>, shape: SeriesShape, target: WallTime | null): WallSource {
+  let iterStart = shape.startWall;
+  const freq = parts.get("FREQ");
+  const interval = Math.max(1, Number(parts.get("INTERVAL") ?? 1));
+  if (target && !parts.has("BYSETPOS") && (freq === "DAILY" || freq === "WEEKLY")) {
+    const period = interval * (freq === "WEEKLY" ? 7 : 1);
+    const startMidnight = Date.UTC(shape.startWall.year, shape.startWall.month - 1, shape.startWall.day);
+    const k = Math.floor(daysBetween(startMidnight, Date.UTC(target.year, target.month - 1, target.day)) / period);
+    if (k > 0) iterStart = wallFromUtc(wallAsUtc(shape.startWall) + k * period * DAY_MS);
+  }
+  const it = ICAL.Recur.fromString(rule).iterator(
+    ICAL.Time.fromData({ ...iterStart, isDate: shape.allDay }),
+  );
+  return () => {
+    for (;;) {
+      const next = it.next();
+      if (!next) return null;
+      if (matchesExplicitParts(parts, next.month, next.day)) {
+        return { year: next.year, month: next.month, day: next.day, hour: next.hour, minute: next.minute, second: next.second };
+      }
+    }
+  };
+}
+
+const WEEKDAY_INDEX: Record<string, number> = { SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6 };
+const FAST_PARTS = new Set(["FREQ", "INTERVAL", "COUNT", "WKST", "BYDAY", "BYMONTHDAY", "BYMONTH"]);
+/** Give up after this many impossible dates in a row (e.g. the 31st of every February). */
+const MAX_INVALID_RUN = 1000;
+
+const dayNumber = (y: number, m: number, d: number) => Date.UTC(y, m - 1, d) / DAY_MS;
+const daysInMonth = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate();
+const weekdayOf = (dn: number) => (((dn + 4) % 7) + 7) % 7; // 1970-01-01 was a Thursday
+
+/**
+ * Fast path for simple rules (§7; agreed with Trenten in Stage 8 as a refinement of D3).
+ * Plain calendar arithmetic for: DAILY; WEEKLY with optional BYDAY weekdays; MONTHLY on
+ * one day of the month; YEARLY on one month and day; each with INTERVAL, COUNT, WKST.
+ * Returns null for anything else, which then goes to ical.js. It must produce exactly
+ * what ical.js produces; recurrence.test.ts compares the two on thousands of random rules.
+ */
+function fastWalls(parts: Map<string, string>, start: WallTime, target: WallTime | null): WallSource | null {
+  if ([...parts.keys()].some((k) => !FAST_PARTS.has(k))) return null;
+  const freq = parts.get("FREQ");
+  const interval = Number(parts.get("INTERVAL") ?? 1);
+  if (!Number.isInteger(interval) || interval < 1) return null;
+  const count = parts.has("COUNT") ? Number(parts.get("COUNT")) : Infinity;
+  if (!(count >= 0)) return null;
+  const single = (key: string, max: number): number | null => {
+    const v = parts.get(key);
+    return v !== undefined && /^\d+$/.test(v) && Number(v) >= 1 && Number(v) <= max ? Number(v) : null;
+  };
+
+  const startDn = dayNumber(start.year, start.month, start.day);
+  const targetDn = target ? dayNumber(target.year, target.month, target.day) : -Infinity;
+  const time = { hour: start.hour, minute: start.minute, second: start.second };
+  const wallOfDay = (dn: number): WallTime => {
+    const d = new Date(dn * DAY_MS);
+    return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate(), ...time };
+  };
+
+  // Candidate day numbers in order; each source yields the next one, or null when done.
+  let candidates: () => number | null;
+  if (freq === "DAILY" || (freq === "WEEKLY" && !parts.has("BYDAY"))) {
+    if (parts.has("BYDAY") || parts.has("BYMONTHDAY") || parts.has("BYMONTH")) return null;
+    const step = interval * (freq === "WEEKLY" ? 7 : 1);
+    let k = Math.max(0, Math.floor((targetDn - startDn) / step));
+    candidates = () => startDn + step * k++;
+  } else if (freq === "WEEKLY") {
+    if (parts.has("BYMONTHDAY") || parts.has("BYMONTH")) return null;
+    const days = parts.get("BYDAY")!.split(",");
+    if (days.some((d) => !(d in WEEKDAY_INDEX))) return null;
+    const wkst = WEEKDAY_INDEX[parts.get("WKST") ?? "MO"];
+    if (wkst === undefined) return null;
+    const weekStart = (dn: number) => dn - ((weekdayOf(dn) - wkst + 7) % 7);
+    const offsets = [...new Set(days.map((d) => (WEEKDAY_INDEX[d]! - wkst + 7) % 7))].sort((a, b) => a - b);
+    const ws0 = weekStart(startDn);
+    let week = Math.max(0, Math.floor((weekStart(Math.max(targetDn, startDn)) - ws0) / 7 / interval)) * interval;
+    let i = 0;
+    candidates = () => {
+      const dn = ws0 + week * 7 + offsets[i]!;
+      if (++i === offsets.length) {
+        i = 0;
+        week += interval;
+      }
+      return dn;
+    };
+  } else if (freq === "MONTHLY") {
+    const day = single("BYMONTHDAY", 31);
+    if (day === null || parts.has("BYDAY") || parts.has("BYMONTH")) return null;
+    const m0 = start.year * 12 + (start.month - 1);
+    const tm = target ? target.year * 12 + (target.month - 1) : -Infinity;
+    let k = Math.max(0, Math.floor((tm - m0) / interval));
+    candidates = () => {
+      for (let run = 0; run < MAX_INVALID_RUN; run++) {
+        const mi = m0 + interval * k++;
+        const y = Math.floor(mi / 12);
+        const m = (mi % 12) + 1;
+        if (day <= daysInMonth(y, m)) return dayNumber(y, m, day);
+      }
+      return null;
+    };
+  } else if (freq === "YEARLY") {
+    const month = single("BYMONTH", 12);
+    const day = single("BYMONTHDAY", 31);
+    if (month === null || day === null || parts.has("BYDAY")) return null;
+    let k = Math.max(0, Math.floor(((target?.year ?? -Infinity) - start.year) / interval));
+    candidates = () => {
+      for (let run = 0; run < MAX_INVALID_RUN; run++) {
+        const y = start.year + interval * k++;
+        if (day <= daysInMonth(y, month)) return dayNumber(y, month, day);
+      }
+      return null;
+    };
+  } else {
+    return null;
+  }
+
+  let emitted = 0;
+  return () => {
+    while (emitted < count) {
+      const dn = candidates();
+      if (dn === null) return null;
+      if (dn < startDn) continue; // before DTSTART in its first period
+      emitted++;
+      return wallOfDay(dn);
+    }
+    return null;
+  };
 }
 
 export interface SeriesCoverage {
@@ -227,14 +338,54 @@ export function seriesCoverage(series: CalendarEvent, from: number, to: number, 
   return end > start ? { start, end, coverage } : { start, end: start, coverage: 0 };
 }
 
+/** ~397 days. Fixed, so a bucket expanded at one zoom level is reused at every other one. */
+export const BUCKET_MS = 2 ** 35;
+
+const seriesEnds = new Map<string, number>();
+
 /**
- * Per-series cache of expansions by window bucket (§7). Buckets are power-of-two
- * lengths at least as long as the query, so a window touches at most two of them.
+ * When a series' last occurrence ends: Infinity unless it has COUNT or UNTIL. A COUNT
+ * series has to be counted from its start, so without this every window after it ends
+ * would re-walk all of its occurrences just to find nothing. Cached per series version.
+ */
+export function seriesEnd(series: CalendarEvent, displayZone: string): number {
+  if (!series.recurrence) return Infinity;
+  const key = `${series.id}|${series.updatedAt}|${displayZone}|${series.recurrence.rrule}`;
+  let end = seriesEnds.get(key);
+  if (end === undefined) {
+    const parts = parseRRule(series.recurrence.rrule);
+    const until = parseUntil(parts.get("UNTIL"));
+    if (!parts.has("COUNT") && !until) {
+      end = Infinity;
+    } else if (!parts.has("COUNT") && until) {
+      // No need to expand: nothing starts after UNTIL. Allow the longest duration and a day of zone slack.
+      const shape = shapeOf(series);
+      const length = (shape?.wallDurationMs ?? 0) + 2 * DAY_MS;
+      end =
+        until.kind === "instant"
+          ? until.t + length
+          : until.kind === "date"
+            ? Date.parse(`${until.date}T00:00:00Z`) + DAY_MS + length
+            : Date.parse(`${until.wall}Z`) + length;
+    } else {
+      // Ignore EXDATEs here: they never move the end later, and keeping them would only end it sooner.
+      const bare = { ...series, recurrence: { ...series.recurrence, exdates: [] } };
+      const all = expandSeries(bare, -8.64e15, 8.64e15, displayZone);
+      end = all.length ? all[all.length - 1]!.end : -Infinity;
+    }
+    seriesEnds.set(key, end);
+  }
+  return end;
+}
+
+/**
+ * Per-series cache of expansions by window bucket (§7). Buckets are a fixed size, so
+ * zooming and panning only ever expand years not seen before.
  */
 export class ExpansionCache {
   private entries = new Map<string, ExpandedOccurrence[]>();
 
-  constructor(private readonly maxEntries = 2000) {}
+  constructor(private readonly maxEntries = 20_000) {}
 
   get(
     series: CalendarEvent,
@@ -243,7 +394,10 @@ export class ExpansionCache {
     displayZone: string,
     skipKeys: ReadonlySet<string>,
   ): ExpandedOccurrence[] {
-    const size = 2 ** Math.ceil(Math.log2(Math.max(1, to - from)));
+    const size = BUCKET_MS;
+    const end = seriesEnd(series, displayZone);
+    if (from >= end) return [];
+    to = Math.min(to, end);
     const first = Math.floor(from / size);
     const last = Math.floor((to - 1) / size);
     const skipSig = [...skipKeys].sort().join(",");
