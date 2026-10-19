@@ -16,6 +16,7 @@ Owner: Trenten (GitHub `TrentenMUW`). Course: TCSS 490, Artifact 2.
 npm install
 npm run dev         # local dev server
 npm run test        # Vitest
+npm run test:watch  # Vitest in watch mode
 npm run test:e2e    # Playwright smoke tests (from Stage 8)
 npm run typecheck   # tsc --noEmit
 npm run build       # production build, base /continuum/
@@ -46,4 +47,4 @@ tests/fixtures/  FAKE .ics / .csv / .json files only.
 10. **End of session.** Update "Current status" below: the current stage, what works, what's next, and any known issues.
 
 ## Current status
-Stage 0: the repo is public with Pages set to GitHub Actions, and `docs/PLAN.md` is written. Waiting for Trenten to agree to the PLAN.md §7 departures (Node 24, extra dev-deps, no state library). Next: Stage 1. No app code exists yet.
+Stage 1 built, waiting for Trenten's "Verify by hand". It includes the Vite/React/TS scaffold, the dark shell and toolbar (all controls disabled), the Dexie v1 schema with a migrations list, seeding (D2), and settings loading. Tests, typecheck, and build pass. No deploy workflow exists yet (Stage 2). Next: Stage 2, the timeline engine plus the first deploy. Known issues: none.

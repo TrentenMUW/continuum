@@ -16,3 +16,13 @@ Format: what I asked → what changed / what the AI got wrong.
 - Logged in with `gh auth login` (TrentenMUW). Set the commit identity locally to match the portfolio repo's commits.
 - `git init -b main` → commit "Add project docs" → `gh repo create TrentenMUW/continuum --public ... --push` → Pages set to build from GitHub Actions (`build_type=workflow`).
 - Wrote `docs/PLAN.md`: structure, pinned versions, the pan-without-React design (layers positioned relative to a reference time and moved by a per-frame SVG transform), data flow, tests per stage, and risks. Listed departures: Node 24, six support dev-dependencies not named in SPEC §4, and no state library. Waiting for my agreement.
+- Agreed to all PLAN.md §7 departures.
+
+### Oct 18, 2026: Stage 1, foundation
+- Asked for Stage 1 → hand-written Vite 8 + React 19 + TypeScript 7 (strict, `noUncheckedIndexedAccess`) scaffold, without a template. Every package pinned exactly per PLAN.md §2.
+- Dexie schema v1 lives in a `MIGRATIONS` list (`src/data/migrations.ts`), so later versions are added as new entries. Settings and meta are single-row tables (`id: "app"` / `id: "meta"`).
+- Seeding (D2) runs in one read-write transaction keyed on `meta.seeded`. React StrictMode double-runs effects, and a test with three concurrent calls confirmed this gives exactly one seed. Deleting the milestone doesn't bring it back.
+- `loadSettings` merges stored settings over defaults, so settings added later get a value on old databases.
+- Dark theme tokens, a full-viewport shell, and the §5.11 toolbar, with every control disabled and its tooltip naming the stage it arrives in. The Now marker color (`#ff3b5c`) isn't used by any category.
+- 12 Vitest tests (seed, settings, app shell), typecheck clean, build OK. Checked in the browser: 8 categories and one 2065-01-01 milestone in IndexedDB, still 8 and 1 after repeated reloads, no console errors.
+- Note: DevTools lists categories in id (UUID) order, not lane order. Their `order` field is 1–8 as specified.
