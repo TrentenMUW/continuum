@@ -208,3 +208,4 @@ Format: what I asked → what changed / what the AI got wrong.
   - A dev hot reload wiped my in-page copy of the backup partway, so I first removed the imported records by `source: "ics"` (your two events were never touched), then reran the full export → import → restore flow in one pass.
 - Build note: the bundle is now over 500 kB (ical.js and papaparse). That's a warning, not an error, and is for Stage 8 (code-split the import code).
 - 218 tests pass, typecheck clean, build OK.
+- Verified Stage 7 by hand ("These things are functional!").
