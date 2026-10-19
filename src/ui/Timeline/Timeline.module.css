@@ -160,6 +160,21 @@
   stroke-width: 2;
 }
 
+.milestone {
+  cursor: ew-resize;
+  outline: none;
+}
+
+.milestone:focus-visible .milestoneLabel {
+  text-decoration: underline;
+  text-decoration-color: var(--focus-ring);
+  text-decoration-thickness: 2px;
+}
+
+.milestone:focus-visible .milestoneLine {
+  stroke: var(--focus-ring);
+}
+
 .milestoneLabel {
   fill: var(--milestone);
   font-size: 11px;

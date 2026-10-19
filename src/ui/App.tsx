@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { Occurrence } from "../data/index";
+import type { Milestone } from "../data/types";
 import { getAppState, initApp, openPanel, updateSettings, useAppState } from "../state/appStore";
 import { useLive, viewportStore } from "../state/viewportStore";
 import { SidePanel } from "./Panel/SidePanel";
@@ -10,6 +11,7 @@ import styles from "./App.module.css";
 const selectEvent = (o: Occurrence) =>
   openPanel({ kind: "event", eventId: o.event.id, occurrenceKey: o.event.recurrence ? o.key : undefined });
 const editCategories = () => openPanel({ kind: "categories" });
+const openMilestone = (m: Milestone) => openPanel({ kind: "milestone", milestoneId: m.id });
 
 export function App() {
   const ready = useAppState((s) => (s.status === "ready" ? s : null));
@@ -45,6 +47,7 @@ export function App() {
         ready={!!ready}
         snapEnabled={snapEnabled}
         onAddEvent={() => openPanel({ kind: "event", eventId: null })}
+        onAddMilestone={() => openPanel({ kind: "milestone", milestoneId: null })}
         onReturnToNow={() => viewportStore.returnToNow()}
         onZoomIn={() => viewportStore.zoomButton(1)}
         onZoomOut={() => viewportStore.zoomButton(-1)}
@@ -68,6 +71,7 @@ export function App() {
                 eventsVersion={ready.eventsVersion}
                 selectedId={selectedId}
                 onSelectEvent={selectEvent}
+                onOpenMilestone={openMilestone}
                 onEditCategories={editCategories}
               />
             </div>

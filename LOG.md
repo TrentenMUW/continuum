@@ -144,3 +144,21 @@ Format: what I asked → what changed / what the AI got wrong.
 - 160 tests pass, typecheck clean, build OK.
 - Verified Stage 5 by hand: everything works, but the "Never ends / Ends on / Ends after" radios sat in the middle of the panel instead of against the left edge (screenshot).
   - **AI got wrong:** the panel's text-field rule (`.form input:not([type=checkbox]):not([type=color])`) also caught radio buttons, giving them `width: 100%`. Its high specificity also beat the `.short` width, so the "Every ___" box stretched too. Fixed by excluding radios and wrapping the selector in `:where()` so smaller rules can override it. Checked in the browser: all three radios sit 13 px from the fieldset edge, and the Every box is 63 px wide.
+
+### Oct 18, 2026: Stage 6, milestones
+- Asked for Stage 6 → `src/time/milestones.ts`:
+  - `isMilestoneComplete`: the D12 rule. Achievements complete only when marked, and date-based milestones derive completion from today, ignoring any stored flag.
+  - `nearestMidnight`: compares against the real midnights on either side, so drag snapping is right on 23- and 25-hour days (tested on Nov 1, 2026 and Mar 14, 2027).
+- Milestone repository: create, update, delete. Date-based milestones never store `completed` or `completedAt`. A manual milestone records `completedAt` (today) when marked complete and drops it when unmarked.
+- UI:
+  - Add Milestone opens an editor with title, date, "Completes: when I mark it complete / when its date arrives", a Completed checkbox (achievements only; date-based shows its derived state), description, and a two-step delete.
+  - Milestones in the ruler are focusable buttons with names like "Milestone: Graduation, Tue 20 Oct 2026, not complete". Enter opens one.
+  - Drag a milestone by its ruler label, or anywhere on its full-height line (12 px grab area). It previews at the snapped day while moving and saves on release, and a press without movement opens it instead. Milestone drags don't pan or turn off LIVE.
+- The ruler SVG changed from `role="img"` to `role="group"`, because `img` hides its children from screen readers and the milestone buttons inside it need to be reachable.
+- Checked in the browser (pane visible, real mouse):
+  - Added "Graduation" on Oct 20, which showed dashed (not complete).
+  - Dragging it ~1.3 days left snapped it to Mon 19 Oct 00:00, and LIVE stayed on.
+  - After a reload it was still stored as 2026-10-19.
+  - Clicking its line opened the editor, and Delete → "Delete milestone" removed it, leaving only the seeded 2065 milestone.
+- Tests cover a past-dated achievement staying incomplete until marked, date-based derivation, and deleting the 2065 milestone surviving a restart (repository level and UI).
+- 173 tests pass, typecheck clean, build OK.

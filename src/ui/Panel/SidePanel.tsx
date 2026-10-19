@@ -5,6 +5,7 @@ import { startOfCalDate } from "../../time/calDate";
 import { expandSeries } from "../../time/recurrence";
 import { CategoryManager } from "./CategoryManager";
 import { EventEditor, type OccurrenceContext } from "./EventEditor";
+import { MilestoneEditor } from "./MilestoneEditor";
 import styles from "./Panel.module.css";
 
 const DAY_MS = 86_400_000;
@@ -26,8 +27,19 @@ export function SidePanel({ state }: { state: ReadyState }) {
 
   const event = panel.kind === "event" && panel.eventId ? (state.events.get(panel.eventId) ?? null) : null;
   const occurrence = panel.kind === "event" && panel.eventId ? occurrenceContext(state, panel.eventId, panel.occurrenceKey) : undefined;
+  const milestone = panel.kind === "milestone" && panel.milestoneId ? (state.milestones.find((m) => m.id === panel.milestoneId) ?? null) : null;
   const title =
-    panel.kind === "categories" ? "Categories" : occurrence ? "Edit repeating event" : event ? "Edit event" : "New event";
+    panel.kind === "categories"
+      ? "Categories"
+      : panel.kind === "milestone"
+        ? milestone
+          ? "Edit milestone"
+          : "New milestone"
+        : occurrence
+          ? "Edit repeating event"
+          : event
+            ? "Edit event"
+            : "New event";
 
   return (
     <aside className={styles.panel} aria-label={title}>
@@ -48,6 +60,9 @@ export function SidePanel({ state }: { state: ReadyState }) {
             zone={state.zone}
             now={viewportStore.now()}
           />
+        )}
+        {panel.kind === "milestone" && (
+          <MilestoneEditor key={panel.milestoneId ?? "new"} milestone={milestone} zone={state.zone} now={viewportStore.now()} />
         )}
         {panel.kind === "categories" && <CategoryManager categories={state.categories} events={state.events} />}
       </div>

@@ -5,6 +5,7 @@ interface ToolbarProps {
   ready: boolean;
   snapEnabled: boolean;
   onAddEvent: () => void;
+  onAddMilestone: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onToggleSnap: () => void;
@@ -12,7 +13,7 @@ interface ToolbarProps {
 }
 
 /** §5.11 toolbar. Controls are disabled until the stage that implements them. */
-export function Toolbar({ live, ready, snapEnabled, onAddEvent, onZoomIn, onZoomOut, onToggleSnap, onReturnToNow }: ToolbarProps) {
+export function Toolbar({ live, ready, snapEnabled, onAddEvent, onAddMilestone, onZoomIn, onZoomOut, onToggleSnap, onReturnToNow }: ToolbarProps) {
   return (
     <header className={styles.toolbar} role="toolbar" aria-label="Continuum controls">
       <h1 className={styles.title}>Continuum</h1>
@@ -21,7 +22,7 @@ export function Toolbar({ live, ready, snapEnabled, onAddEvent, onZoomIn, onZoom
         <button type="button" className={styles.primary} disabled={!ready} onClick={onAddEvent}>
           Add Event
         </button>
-        <button type="button" disabled title="Coming in Stage 6">
+        <button type="button" disabled={!ready} onClick={onAddMilestone}>
           Add Milestone
         </button>
       </div>

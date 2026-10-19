@@ -1,11 +1,15 @@
-﻿import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+﻿import { TZDate } from "@date-fns/tz";
+import { format } from "date-fns";
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import type { EventIndex, Occurrence } from "../../data/index";
 import type { AppSettings, Category, Milestone } from "../../data/types";
-import { layoutLanes } from "../../time/lanes";
+import { moveMilestone } from "../../state/appStore";
 import { useRenderWindow, viewportStore } from "../../state/viewportStore";
 import { calDateOf, startOfCalDate } from "../../time/calDate";
+import { layoutLanes } from "../../time/lanes";
+import { isMilestoneComplete, nearestMidnight } from "../../time/milestones";
 import { rulerTicks } from "../../time/ticks";
-import { wheelZoomFactor } from "../../time/viewport";
+import { tOf, wheelZoomFactor } from "../../time/viewport";
 import { LaneLabels } from "./LaneLabels";
 import { Lanes } from "./Lanes";
 import { NowMarker } from "./NowMarker";
@@ -15,6 +19,7 @@ import styles from "./Timeline.module.css";
 export interface PlacedMilestone {
   milestone: Milestone;
   t: number;
+  dateLabel: string;
   complete: boolean;
 }
 
@@ -27,6 +32,7 @@ interface TimelineProps {
   eventsVersion: number;
   selectedId: string | null;
   onSelectEvent: (occ: Occurrence) => void;
+  onOpenMilestone: (m: Milestone) => void;
   onEditCategories: () => void;
 }
 
@@ -43,6 +49,7 @@ export function Timeline({
   eventsVersion,
   selectedId,
   onSelectEvent,
+  onOpenMilestone,
   onEditCategories,
 }: TimelineProps) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -125,15 +132,21 @@ export function Timeline({
   // Ticks depend only on the render window, so panning inside the buffer reuses them.
   const ticks = useMemo(() => (rw ? rulerTicks(rw.scale, rw.winStart, rw.winEnd, zone) : null), [rw, zone]);
 
+  const milestoneDrag = useMilestoneDrag(plotRef, zone, onOpenMilestone);
+
   const placedMilestones = useMemo<PlacedMilestone[]>(() => {
     const today = calDateOf(Date.now(), zone);
-    return milestones.map((m) => ({
-      milestone: m,
-      t: startOfCalDate(m.targetDate, zone),
-      // D12: date-based milestones complete when their date arrives; others only by toggle.
-      complete: m.completionMode === "date-based" ? today >= m.targetDate : m.completed,
-    }));
-  }, [milestones, zone]);
+    return milestones.map((m) => {
+      // While dragging, show the milestone at the day it would snap to.
+      const targetDate = milestoneDrag.preview?.id === m.id ? milestoneDrag.preview.date : m.targetDate;
+      return {
+        milestone: m,
+        t: startOfCalDate(targetDate, zone),
+        dateLabel: format(new TZDate(startOfCalDate(targetDate, zone), zone), "EEE d MMM yyyy"),
+        complete: isMilestoneComplete({ ...m, targetDate }, today),
+      };
+    });
+  }, [milestones, zone, milestoneDrag.preview]);
 
   // Only milestones inside the buffered window are drawn (§7).
   const windowMilestones = useMemo(
@@ -167,7 +180,7 @@ export function Timeline({
           </button>
         </div>
         <div ref={plotRef} className={styles.plot} {...drag}>
-          {rw && ticks && <Ruler rw={rw} ticks={ticks} milestones={windowMilestones} />}
+          {rw && ticks && <Ruler rw={rw} ticks={ticks} milestones={windowMilestones} handlers={milestoneDrag.handlers} />}
         </div>
       </div>
       <div className={styles.body}>
@@ -181,6 +194,7 @@ export function Timeline({
               totalHeight={layout.totalHeight}
               categories={categoryById}
               milestones={windowMilestones}
+              milestoneHandlers={milestoneDrag.handlers}
               pastOpacity={settings.pastEventOpacity}
               zone={zone}
               selectedId={selectedId}
@@ -195,6 +209,58 @@ export function Timeline({
 }
 
 const DRAG_THRESHOLD_PX = 3;
+
+export interface MilestoneHandlers {
+  onPointerDown: (m: Milestone, e: ReactPointerEvent<SVGElement>) => void;
+  onPointerMove: (e: ReactPointerEvent<SVGElement>) => void;
+  onPointerUp: (e: ReactPointerEvent<SVGElement>) => void;
+  onOpen: (m: Milestone) => void;
+}
+
+/**
+ * Drag a milestone to reschedule it (D12). It snaps to the nearest local midnight
+ * while moving and saves on release. A press without movement opens it instead.
+ */
+function useMilestoneDrag(plotRef: RefObject<HTMLDivElement | null>, zone: string, onOpen: (m: Milestone) => void) {
+  const [preview, setPreview] = useState<{ id: string; date: string } | null>(null);
+  const state = useRef<{ m: Milestone; downX: number; moved: boolean; date: string } | null>(null);
+  const openRef = useRef(onOpen);
+  openRef.current = onOpen;
+
+  const [handlers] = useState<MilestoneHandlers>(() => ({
+    onPointerDown(m, e) {
+      if (e.button !== 0) return;
+      e.stopPropagation(); // not a pan
+      state.current = { m, downX: e.clientX, moved: false, date: m.targetDate };
+      e.currentTarget.setPointerCapture(e.pointerId);
+    },
+    onPointerMove(e) {
+      const s = state.current;
+      if (!s) return;
+      e.stopPropagation();
+      if (!s.moved && Math.abs(e.clientX - s.downX) < DRAG_THRESHOLD_PX) return;
+      s.moved = true;
+      const x = e.clientX - (plotRef.current?.getBoundingClientRect().left ?? 0);
+      const date = nearestMidnight(tOf(viewportStore.getViewport(), x), zone);
+      if (date !== s.date) {
+        s.date = date;
+        setPreview({ id: s.m.id, date });
+      }
+    },
+    onPointerUp(e) {
+      const s = state.current;
+      state.current = null;
+      if (!s) return;
+      e.stopPropagation();
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      if (!s.moved) openRef.current(s.m);
+      else if (s.date !== s.m.targetDate) void moveMilestone(s.m.id, s.date).finally(() => setPreview(null));
+      else setPreview(null);
+    },
+    onOpen: (m) => openRef.current(m),
+  }));
+  return { handlers, preview };
+}
 
 /**
  * Drag on the timeline pans (D7). The pointer is captured only once it has moved a few

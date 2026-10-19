@@ -10,7 +10,13 @@ import {
 } from "../data/repo/categories";
 import { createEvent, deleteEvent, listEvents, updateEvent } from "../data/repo/events";
 import { deleteOccurrence, saveOccurrence, type OccurrenceFields, type Scope } from "../data/repo/recurrence";
-import { listMilestones } from "../data/repo/milestones";
+import {
+  createMilestone,
+  deleteMilestone,
+  listMilestones,
+  updateMilestone,
+  type MilestoneFields,
+} from "../data/repo/milestones";
 import { loadSettings, saveSettings } from "../data/repo/settings";
 import { seedIfNeeded } from "../data/seed";
 import type { AppSettings, CalendarEvent, Category, Milestone } from "../data/types";
@@ -23,6 +29,7 @@ import { resolveDisplayZone } from "../time/zones";
 export type Panel =
   | { kind: "none" }
   | { kind: "event"; eventId: string | null; occurrenceKey?: string }
+  | { kind: "milestone"; milestoneId: string | null }
   | { kind: "categories" };
 
 export interface ReadyState {
@@ -229,6 +236,35 @@ async function reloadCategories(): Promise<void> {
   const { db } = ready();
   const categories = await listCategories(db);
   setState({ ...ready().s, categories });
+}
+
+async function reloadMilestones(): Promise<void> {
+  const milestones = await listMilestones(ready().db);
+  setState({ ...ready().s, milestones });
+}
+
+/** Create (id null) or update a milestone (§5.7). */
+export async function saveMilestone(id: string | null, fields: MilestoneFields): Promise<void> {
+  const { db } = ready();
+  if (id) await updateMilestone(db, id, fields);
+  else await createMilestone(db, fields);
+  await reloadMilestones();
+  requestPersistence();
+}
+
+/** Move a milestone to another day, e.g. after a drag (D12). */
+export async function moveMilestone(id: string, targetDate: string): Promise<void> {
+  const { s, db } = ready();
+  // Show the move at once; the write follows.
+  setState({ ...s, milestones: s.milestones.map((m) => (m.id === id ? { ...m, targetDate } : m)) });
+  await updateMilestone(db, id, { targetDate });
+  await reloadMilestones();
+}
+
+export async function removeMilestone(id: string): Promise<void> {
+  await deleteMilestone(ready().db, id);
+  await reloadMilestones();
+  closePanel();
 }
 
 export async function addCategory(name: string, color: string): Promise<void> {

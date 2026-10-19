@@ -2,7 +2,7 @@ import { memo, useLayoutEffect, useRef, type RefObject } from "react";
 import { useLayerTransform, viewportStore } from "../../state/viewportStore";
 import type { RulerTicks } from "../../time/ticks";
 import { layerX, tOf, type RenderWindow } from "../../time/viewport";
-import type { PlacedMilestone } from "./Timeline";
+import type { MilestoneHandlers, PlacedMilestone } from "./Timeline";
 import styles from "./Timeline.module.css";
 
 export const RULER_HEIGHT = 60;
@@ -14,9 +14,10 @@ interface RulerProps {
   rw: RenderWindow;
   ticks: RulerTicks;
   milestones: PlacedMilestone[];
+  handlers: MilestoneHandlers;
 }
 
-export const Ruler = memo(function Ruler({ rw, ticks, milestones }: RulerProps) {
+export const Ruler = memo(function Ruler({ rw, ticks, milestones, handlers }: RulerProps) {
   const layerRef = useRef<SVGGElement>(null);
   const contextRef = useRef<HTMLDivElement>(null);
   useLayerTransform(layerRef, rw);
@@ -24,7 +25,7 @@ export const Ruler = memo(function Ruler({ rw, ticks, milestones }: RulerProps) 
 
   return (
     <div className={styles.ruler}>
-      <svg className={styles.svg} height={RULER_HEIGHT} role="img" aria-label="Time ruler">
+      <svg className={styles.svg} height={RULER_HEIGHT} role="group" aria-label="Time ruler">
         <g ref={layerRef}>
           {ticks.majors.map(({ t, label }) => {
             const x = layerX(rw, t);
@@ -48,10 +49,29 @@ export const Ruler = memo(function Ruler({ rw, ticks, milestones }: RulerProps) 
               </g>
             );
           })}
-          {milestones.map(({ milestone, t, complete }) => {
+          {milestones.map(({ milestone, t, complete, dateLabel }) => {
             const x = layerX(rw, t);
+            const label = `Milestone: ${milestone.title}, ${dateLabel}, ${complete ? "complete" : "not complete"}. Drag to move.`;
             return (
-              <g key={milestone.id} role="img" aria-label={`Milestone: ${milestone.title}, ${milestone.targetDate}`}>
+              <g
+                key={milestone.id}
+                className={styles.milestone}
+                role="button"
+                tabIndex={0}
+                aria-label={label}
+                onPointerDown={(e) => handlers.onPointerDown(milestone, e)}
+                onPointerMove={handlers.onPointerMove}
+                onPointerUp={handlers.onPointerUp}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    handlers.onOpen(milestone);
+                  }
+                }}
+              >
+                <title>{`${milestone.title}, ${dateLabel}`}</title>
+                {/* A generous, invisible grab area around the line and its label. */}
+                <rect x={x - 6} y={0} width={milestone.title.length * 7 + 20} height={RULER_HEIGHT} fill="transparent" />
                 <line
                   x1={x}
                   x2={x}

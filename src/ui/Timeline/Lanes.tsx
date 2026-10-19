@@ -6,7 +6,7 @@ import { LANE_PAD, ROW_HEIGHT, rowY, type LaneLayout, type PlacedRect } from "..
 import type { RulerTicks } from "../../time/ticks";
 import { layerX, type RenderWindow } from "../../time/viewport";
 import { describeOccurrence } from "./describe";
-import type { PlacedMilestone } from "./Timeline";
+import type { MilestoneHandlers, PlacedMilestone } from "./Timeline";
 import styles from "./Timeline.module.css";
 
 interface LanesProps {
@@ -16,6 +16,7 @@ interface LanesProps {
   totalHeight: number;
   categories: Map<string, Category>;
   milestones: PlacedMilestone[];
+  milestoneHandlers: MilestoneHandlers;
   pastOpacity: number;
   zone: string;
   /** occurrenceId() of the selected occurrence. */
@@ -30,6 +31,7 @@ export const Lanes = memo(function Lanes({
   totalHeight,
   categories,
   milestones,
+  milestoneHandlers,
   pastOpacity,
   zone,
   selectedId,
@@ -94,16 +96,18 @@ export const Lanes = memo(function Lanes({
         </PastMask>
         {milestones.map(({ milestone, t, complete }) => {
           const x = layerX(rw, t);
+          // The ruler copy is the focusable one; this full-height line is a mouse target too.
           return (
-            <line
+            <g
               key={milestone.id}
-              x1={x}
-              x2={x}
-              y1={0}
-              y2="100%"
-              className={styles.milestoneLine}
-              strokeDasharray={complete ? undefined : "4 3"}
-            />
+              className={styles.milestone}
+              onPointerDown={(e) => milestoneHandlers.onPointerDown(milestone, e)}
+              onPointerMove={milestoneHandlers.onPointerMove}
+              onPointerUp={milestoneHandlers.onPointerUp}
+            >
+              <line x1={x} x2={x} y1={0} y2="100%" stroke="transparent" strokeWidth={12} />
+              <line x1={x} x2={x} y1={0} y2="100%" className={styles.milestoneLine} strokeDasharray={complete ? undefined : "4 3"} />
+            </g>
           );
         })}
       </g>
