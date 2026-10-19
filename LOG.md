@@ -239,3 +239,8 @@ Format: what I asked → what changed / what the AI got wrong.
 - **Playwright** (`npm run test:e2e`, 7 smoke tests on the production build at `/continuum/`): clean load with no console errors, adding an event with only the keyboard (and surviving a reload), keyboard pan/zoom/N, .ics import and unchanged re-import, bad CSV rows, export → add → restore, and light theme + About link. Added to CI before deploy.
 - README: setup, scripts, testing, benchmark mode, deployment, the ICS/CSV formats, backup and restore, storage limits, and keyboard shortcuts.
 - 229 unit/component tests and 7 Playwright tests pass, typecheck clean, build OK.
+
+### Oct 19, 2026: Portfolio card (HANDOFF §5)
+- Asked Claude Code to make the portfolio edits with placeholder text for now → it cloned `TrentenMUW.github.io` into `C:\ClaudeCode\TCSS490\TrentenMUW.github.io` and edited only `artifacts.js` (card `id: 2`): title "Continuum", status "complete", a link to the live app, a drafted factual description, `ideas: []`, and `reflection: "TODO(Trenten): …"`. It also added an entry to the portfolio's own LOG.md.
+- Checked locally: the card renders as complete, with a working "View artifact" link. The About link back to this repo was already in Settings (Stage 8).
+- **Not committed or pushed** in the portfolio repo. My reflection is still a placeholder, I still need to approve the description, and HANDOFF requires `grep -rn "TODO(Trenten)"` to come back empty before pushing.
