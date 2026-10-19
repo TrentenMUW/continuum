@@ -46,3 +46,4 @@ Format: what I asked → what changed / what the AI got wrong.
   - with Snap on, a 6.46-day zoom settles at exactly 7 days, and with it off it stays put
 - Added `.github/workflows/deploy.yml`: Node 24, `npm ci` → typecheck → test → build → upload-pages-artifact → deploy-pages, using the latest major action versions (checkout v7, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5).
 - 46 tests pass, typecheck clean, build OK.
+- First deploy succeeded. https://trentenmuw.github.io/continuum/ returns 200, both assets load from `/continuum/assets/` with 200, and the console is clean. The Actions run noted that `ubuntu-latest` moves to Ubuntu 26 starting Oct 19, 2026. No change is needed, but if CI breaks after that date, check there first.
