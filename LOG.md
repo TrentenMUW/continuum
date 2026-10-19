@@ -67,3 +67,34 @@ Format: what I asked → what changed / what the AI got wrong.
 - 60 tests pass, typecheck clean, build OK.
 - Approved the live-mode zoom interpretation: zoom centers on the Now marker while live, and on the cursor otherwise.
 - Verified Stage 3 by hand ("looks very good").
+
+### Oct 18, 2026: Stage 4, events and categories
+- Asked for Stage 4 → data layer:
+  - `src/data/index.ts`: the D4 in-memory index. One-off events are sorted by start and queried with a binary search that looks back by the longest duration, and it's patched in place on edits. Recurring series are skipped until Stage 5.
+  - `src/data/validate.ts`: form ↔ record conversion. Timed values become UTC instants read in the display zone. All-day ends are inclusive in the form and exclusive in storage.
+  - Event and category repositories, including delete-with-reassign in one transaction.
+- Layout (`src/time/lanes.ts`, `density.ts`): greedy row stacking per lane over the buffered window, and lane height = rows (minimum 1). Events under 1 px go into per-pixel density bins whose opacity is the covered fraction, and overlapping time is merged so it's never double-counted. Titles show only above 40 px. Very long events are clamped to the window so coordinates stay small.
+- UI:
+  - Add Event opens a side panel editor with inline validation and a two-step delete confirm. Clicking, or pressing Enter/Space on, any appearance of an event opens the same record.
+  - A Categories button (top-left corner) opens the manager: add, rename, recolor, move up/down, hide/show, and delete, which asks where to move events if any use the category.
+  - Events are focusable SVG buttons with an accessible name and a native tooltip ("Hike, Sat 24 Oct 2026, 09:00 – 11:00").
+  - Escape closes the panel.
+- Dragging now captures the pointer only after 3 px of movement, so clicking an event opens it instead of starting a pan or turning off live mode.
+- Added early: `navigator.storage.persist()` is requested once after the first user-created save (D16 says "after the first user-created data is saved"). Its status display is still Stage 8.
+- **AI got wrong:**
+  - Changing `settings.timeZone` didn't update the store's zone or rebuild the index. A test only passed because this machine is on Pacific time. Fixed: a zone change re-derives both. Added a Tokyo test and ran the suite with `TZ=Asia/Tokyo`.
+  - One greedy-stacking test expectation was wrong (the code was right).
+  - A density assertion was vacuous (`>= 0`) and was replaced with a real check: daily 8-hour sleep at a 40-year zoom gives ≈⅓ opacity.
+  - Side-by-side datetime inputs cut off AM/PM, so start and end now stack.
+- Checked in the browser at 1400 px:
+  - a 2-hour Hike in Health/Hobbies/Social appeared in all three lanes at identical x and width
+  - editing it from the Hobbies lane renamed every copy, and unchecking Social removed only that lane
+  - three overlapping Work events stacked into three rows (lane 36 → 96 px), and each opened on click
+  - an event spanning Now was dim before the marker and solid after
+  - zooming out shrank events (14 px → 4 px → 1 px) and then turned them into density strips, never widened blocks
+  - everything survived a refresh
+  - Tab reached the events with a visible focus ring, and Enter opened them
+  - hide and show of Education worked
+- My browser test events were cleared from the local dev database afterward.
+- **Open question for me (D10):** density opacity is the true covered fraction, as specified. With sparse data (a handful of events), the strips fade to invisible at decade zoom. A minimum visible opacity would show that something exists there, but it would no longer be a true fraction.
+- 107 tests pass, typecheck clean, build OK.

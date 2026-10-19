@@ -31,15 +31,60 @@
 
 .corner {
   flex: none;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-1);
   width: var(--lane-label-width);
   padding: var(--space-2) var(--space-3);
   border-right: 1px solid var(--border);
   color: var(--text-muted);
   font-size: 11px;
-  align-self: flex-end;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.corner > span {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.cornerButton {
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.cornerButton:hover {
+  background: var(--bg-hover);
+}
+
+.event {
+  cursor: pointer;
+  outline: none;
+}
+
+.event:focus-visible > rect {
+  stroke: var(--focus-ring);
+  stroke-width: 2;
+}
+
+.eventSelected {
+  stroke: var(--text);
+  stroke-width: 2;
+}
+
+.eventTitle {
+  fill: #0f1115;
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
 }
 
 .plot {

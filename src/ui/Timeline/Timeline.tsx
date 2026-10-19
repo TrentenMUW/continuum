@@ -1,5 +1,7 @@
 ﻿import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import type { EventIndex } from "../../data/index";
 import type { AppSettings, Category, Milestone } from "../../data/types";
+import { layoutLanes } from "../../time/lanes";
 import { useRenderWindow, viewportStore } from "../../state/viewportStore";
 import { calDateOf, startOfCalDate } from "../../time/calDate";
 import { rulerTicks } from "../../time/ticks";
@@ -21,13 +23,28 @@ interface TimelineProps {
   zone: string;
   categories: Category[];
   milestones: Milestone[];
+  index: EventIndex;
+  eventsVersion: number;
+  selectedId: string | null;
+  onSelectEvent: (id: string) => void;
+  onEditCategories: () => void;
 }
 
 const WHEEL_LINE_PX = 16;
 const KEY_PAN_FRACTION = 0.1;
 const KEY_ZOOM = 1.25;
 
-export function Timeline({ settings, zone, categories, milestones }: TimelineProps) {
+export function Timeline({
+  settings,
+  zone,
+  categories,
+  milestones,
+  index,
+  eventsVersion,
+  selectedId,
+  onSelectEvent,
+  onEditCategories,
+}: TimelineProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const plotRef = useRef<HTMLDivElement>(null);
   const rw = useRenderWindow();
@@ -125,28 +142,49 @@ export function Timeline({ settings, zone, categories, milestones }: TimelinePro
   );
 
   const visibleCategories = useMemo(() => categories.filter((c) => c.visible), [categories]);
+  const categoryById = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+
+  // Query and lay out only the buffered window (D4, D5, §7); panning inside it reuses this.
+  const occurrences = useMemo(
+    () => (rw ? index.query(rw.winStart, rw.winEnd) : []),
+    // eventsVersion changes whenever the index is patched in place.
+    [rw, index, eventsVersion],
+  );
+  const layout = useMemo(
+    () => (rw ? layoutLanes(occurrences, visibleCategories.map((c) => c.id), rw) : null),
+    [occurrences, visibleCategories, rw],
+  );
+
   const drag = useDragToPan();
 
   return (
     <div ref={rootRef} className={styles.timeline}>
       <div className={styles.header}>
-        <div className={styles.corner} title="Display time zone">
-          {zone}
+        <div className={styles.corner}>
+          <span title="Display time zone">{zone}</span>
+          <button type="button" className={styles.cornerButton} onClick={onEditCategories}>
+            Categories
+          </button>
         </div>
         <div ref={plotRef} className={styles.plot} {...drag}>
           {rw && ticks && <Ruler rw={rw} ticks={ticks} milestones={windowMilestones} />}
         </div>
       </div>
       <div className={styles.body}>
-        <LaneLabels categories={visibleCategories} />
+        <LaneLabels categories={visibleCategories} heights={layout?.lanes.map((l) => l.height) ?? []} />
         <div className={styles.plot} {...drag}>
-          {rw && ticks && (
+          {rw && ticks && layout && (
             <Lanes
               rw={rw}
               ticks={ticks}
-              laneCount={visibleCategories.length}
+              lanes={layout.lanes}
+              totalHeight={layout.totalHeight}
+              categories={categoryById}
               milestones={windowMilestones}
               pastOpacity={settings.pastEventOpacity}
+              zone={zone}
+              selectedId={selectedId}
+              onSelect={onSelectEvent}
             />
           )}
         </div>
@@ -156,27 +194,42 @@ export function Timeline({ settings, zone, categories, milestones }: TimelinePro
   );
 }
 
-/** Drag on empty timeline pans (D7). A click without movement doesn't count as a pan. */
+const DRAG_THRESHOLD_PX = 3;
+
+/**
+ * Drag on the timeline pans (D7). The pointer is captured only once it has moved a few
+ * pixels, so a plain click still reaches the event under it and doesn't end live mode.
+ */
 function useDragToPan() {
   const [handlers] = useState(() => {
-    let lastX: number | null = null;
+    let downX: number | null = null;
+    let lastX = 0;
+    let dragging = false;
     return {
       onPointerDown(e: ReactPointerEvent<HTMLElement>) {
         if (e.button !== 0) return;
-        lastX = e.clientX;
-        e.currentTarget.setPointerCapture(e.pointerId);
+        downX = lastX = e.clientX;
+        dragging = false;
       },
       onPointerMove(e: ReactPointerEvent<HTMLElement>) {
-        if (lastX === null || e.clientX === lastX) return;
+        if (downX === null) return;
+        if (!dragging) {
+          if (Math.abs(e.clientX - downX) < DRAG_THRESHOLD_PX) return;
+          dragging = true;
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }
+        if (e.clientX === lastX) return;
         viewportStore.panBy(e.clientX - lastX);
         lastX = e.clientX;
       },
       onPointerUp(e: ReactPointerEvent<HTMLElement>) {
-        lastX = null;
-        e.currentTarget.releasePointerCapture(e.pointerId);
+        if (dragging) e.currentTarget.releasePointerCapture(e.pointerId);
+        downX = null;
+        dragging = false;
       },
       onPointerCancel() {
-        lastX = null;
+        downX = null;
+        dragging = false;
       },
     };
   });

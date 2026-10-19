@@ -1,36 +1,51 @@
-import { memo, useId, useLayoutEffect, useRef, type ReactNode } from "react";
+import { memo, useId, useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
+import type { Category } from "../../data/types";
 import { useLayerTransform, viewportStore } from "../../state/viewportStore";
+import { LANE_PAD, ROW_HEIGHT, rowY, type LaneLayout, type PlacedRect } from "../../time/lanes";
 import type { RulerTicks } from "../../time/ticks";
 import { layerX, type RenderWindow } from "../../time/viewport";
+import { describeOccurrence } from "./describe";
 import type { PlacedMilestone } from "./Timeline";
 import styles from "./Timeline.module.css";
-
-export const LANE_HEIGHT = 36;
 
 interface LanesProps {
   rw: RenderWindow;
   ticks: RulerTicks;
-  laneCount: number;
+  lanes: LaneLayout[];
+  totalHeight: number;
+  categories: Map<string, Category>;
   milestones: PlacedMilestone[];
   pastOpacity: number;
-  children?: ReactNode; // event shapes, in layer coordinates (Stage 4)
+  zone: string;
+  selectedId: string | null;
+  onSelect: (eventId: string) => void;
 }
 
-export const Lanes = memo(function Lanes({ rw, ticks, laneCount, milestones, pastOpacity, children }: LanesProps) {
+export const Lanes = memo(function Lanes({
+  rw,
+  ticks,
+  lanes,
+  totalHeight,
+  categories,
+  milestones,
+  pastOpacity,
+  zone,
+  selectedId,
+  onSelect,
+}: LanesProps) {
   const layerRef = useRef<SVGGElement>(null);
   useLayerTransform(layerRef, rw);
-  const height = Math.max(1, laneCount) * LANE_HEIGHT;
 
   return (
     // Lanes are drawn at least as tall as the scroll area, so gridlines reach the bottom.
-    <svg className={styles.lanesSvg} style={{ minHeight: height }} role="presentation">
-      {Array.from({ length: laneCount }, (_, i) => (
+    <svg className={styles.lanesSvg} style={{ minHeight: totalHeight }} role="group" aria-label="Events">
+      {lanes.map((lane, i) => (
         <rect
-          key={i}
+          key={lane.categoryId}
           x={0}
-          y={i * LANE_HEIGHT}
+          y={lane.top}
           width="100%"
-          height={LANE_HEIGHT}
+          height={lane.height}
           className={i % 2 ? styles.laneOdd : styles.laneEven}
         />
       ))}
@@ -44,7 +59,36 @@ export const Lanes = memo(function Lanes({ rw, ticks, laneCount, milestones, pas
           return <line key={`M${t}`} x1={x} x2={x} y1={0} y2="100%" className={styles.gridlineStrong} />;
         })}
         <PastMask rw={rw} pastOpacity={pastOpacity}>
-          {children}
+          {lanes.map((lane) => {
+            const color = categories.get(lane.categoryId)?.color ?? "#9a9a9a";
+            return (
+              <g key={lane.categoryId}>
+                {lane.density.map((d) => (
+                  <rect
+                    key={`d${d.x}`}
+                    x={d.x}
+                    y={lane.top + LANE_PAD}
+                    width={d.width}
+                    height={ROW_HEIGHT}
+                    fill={color}
+                    fillOpacity={d.opacity}
+                    aria-hidden="true"
+                  />
+                ))}
+                {lane.rects.map((r) => (
+                  <EventShape
+                    key={r.occ.event.id}
+                    rect={r}
+                    y={rowY(lane.top, r.row)}
+                    color={color}
+                    label={describeOccurrence(r.occ, zone)}
+                    selected={r.occ.event.id === selectedId}
+                    onSelect={onSelect}
+                  />
+                ))}
+              </g>
+            );
+          })}
         </PastMask>
         {milestones.map(({ milestone, t, complete }) => {
           const x = layerX(rw, t);
@@ -64,6 +108,57 @@ export const Lanes = memo(function Lanes({ rw, ticks, laneCount, milestones, pas
     </svg>
   );
 });
+
+interface EventShapeProps {
+  rect: PlacedRect;
+  y: number;
+  color: string;
+  label: string;
+  selected: boolean;
+  onSelect: (eventId: string) => void;
+}
+
+/** One appearance of an event in one lane: focusable, labeled, with a hover tooltip (§5.11). */
+function EventShape({ rect, y, color, label, selected, onSelect }: EventShapeProps) {
+  const id = rect.occ.event.id;
+  const onKeyDown = (e: KeyboardEvent<SVGGElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      e.stopPropagation();
+      onSelect(id);
+    }
+  };
+  return (
+    <g
+      className={styles.event}
+      role="button"
+      tabIndex={0}
+      aria-label={label}
+      aria-pressed={selected}
+      onClick={() => onSelect(id)}
+      onKeyDown={onKeyDown}
+    >
+      <title>{label}</title>
+      <rect
+        x={rect.x}
+        y={y}
+        width={Math.max(1, rect.width)}
+        height={ROW_HEIGHT}
+        rx={Math.min(4, rect.width / 2)}
+        fill={color}
+        className={selected ? styles.eventSelected : undefined}
+      />
+      {rect.showTitle && (
+        // A nested <svg> clips the title to the rectangle.
+        <svg x={rect.x} y={y} width={Math.max(0, rect.width)} height={ROW_HEIGHT} aria-hidden="true">
+          <text x={6} y={ROW_HEIGHT / 2} dominantBaseline="central" className={styles.eventTitle}>
+            {rect.occ.event.title}
+          </text>
+        </svg>
+      )}
+    </g>
+  );
+}
 
 /**
  * D11: events are drawn once. One alpha mask, split at Now's x and updated each frame,

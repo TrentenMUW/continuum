@@ -1,0 +1,245 @@
+.panel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: 360px;
+  max-width: 100%;
+  border-left: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.header h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.close {
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  flex: 1;
+}
+
+.field label,
+.fieldset legend,
+.newCategory > label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* Start and end stack: side by side, datetime inputs are too narrow to show AM/PM. */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.form input:not([type="checkbox"]):not([type="color"]),
+.form textarea,
+.form select {
+  width: 100%;
+  padding: 6px var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  color-scheme: dark;
+}
+
+.form input[aria-invalid="true"],
+.fieldset[aria-invalid="true"] {
+  border-color: #ff6b6b;
+}
+
+.form textarea {
+  resize: vertical;
+}
+
+.fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.error {
+  margin: 0;
+  color: #ff8a8a;
+  font-size: 12px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.form button,
+.newCategory button {
+  height: 30px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.form button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.form button:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.form .primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.form .primary:hover:not(:disabled) {
+  background: var(--text);
+}
+
+.form .danger {
+  border-color: #7a3434;
+  color: #ff9b9b;
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid #7a3434;
+  border-radius: var(--radius);
+  background: rgba(255, 80, 80, 0.06);
+}
+
+.confirm p {
+  margin: 0;
+}
+
+.categoryList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.categoryRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.categoryMain {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.categoryMain input[type="color"] {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+}
+
+.categoryName {
+  flex: 1;
+}
+
+.categoryTools {
+  display: flex;
+  gap: 6px;
+}
+
+.categoryTools button {
+  height: 26px;
+  font-size: 12px;
+}
+
+.newCategory {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}

@@ -2,7 +2,9 @@ import styles from "./Toolbar.module.css";
 
 interface ToolbarProps {
   live: boolean;
+  ready: boolean;
   snapEnabled: boolean;
+  onAddEvent: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onToggleSnap: () => void;
@@ -10,13 +12,13 @@ interface ToolbarProps {
 }
 
 /** §5.11 toolbar. Controls are disabled until the stage that implements them. */
-export function Toolbar({ live, snapEnabled, onZoomIn, onZoomOut, onToggleSnap, onReturnToNow }: ToolbarProps) {
+export function Toolbar({ live, ready, snapEnabled, onAddEvent, onZoomIn, onZoomOut, onToggleSnap, onReturnToNow }: ToolbarProps) {
   return (
     <header className={styles.toolbar} role="toolbar" aria-label="Continuum controls">
       <h1 className={styles.title}>Continuum</h1>
 
       <div className={styles.group}>
-        <button type="button" className={styles.primary} disabled title="Coming in Stage 4">
+        <button type="button" className={styles.primary} disabled={!ready} onClick={onAddEvent}>
           Add Event
         </button>
         <button type="button" disabled title="Coming in Stage 6">

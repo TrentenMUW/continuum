@@ -6,9 +6,15 @@
 
 .main {
   position: relative;
+  display: flex;
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.timelineArea {
+  flex: 1;
+  min-width: 0;
 }
 
 .message {

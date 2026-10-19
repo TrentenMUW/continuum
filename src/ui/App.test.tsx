@@ -25,7 +25,7 @@ describe("App shell", () => {
 
     expect(screen.getByRole("toolbar", { name: "Continuum controls" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Continuum" })).toBeTruthy();
-    for (const name of ["Add Event", "Add Milestone", "Import", "Export", "Settings"]) {
+    for (const name of ["Add Milestone", "Import", "Export", "Settings"]) {
       const button = screen.getByRole("button", { name }) as HTMLButtonElement;
       expect(button.disabled, name).toBe(true);
     }
@@ -36,6 +36,7 @@ describe("App shell", () => {
     expect(screen.getByLabelText("Live: off")).toBeTruthy();
 
     await waitFor(() => expect(getAppState().status).toBe("ready"));
+    expect((screen.getByRole("button", { name: "Add Event" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("toggles Snap and persists it", async () => {
