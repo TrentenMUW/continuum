@@ -12,9 +12,10 @@ interface ToolbarProps {
   onReturnToNow: () => void;
   onImport: () => void;
   onExport: () => void;
+  onSettings: () => void;
 }
 
-/** §5.11 toolbar. Controls are disabled until the stage that implements them. */
+/** §5.11 toolbar. Controls are disabled until the data has loaded. */
 export function Toolbar({
   live,
   ready,
@@ -27,6 +28,7 @@ export function Toolbar({
   onReturnToNow,
   onImport,
   onExport,
+  onSettings,
 }: ToolbarProps) {
   return (
     <header className={styles.toolbar} role="toolbar" aria-label="Continuum controls">
@@ -79,7 +81,7 @@ export function Toolbar({
         <button type="button" disabled={!ready} onClick={onExport} title="Download a full JSON backup">
           Export
         </button>
-        <button type="button" disabled title="Coming in Stage 8">
+        <button type="button" disabled={!ready} onClick={onSettings}>
           Settings
         </button>
       </div>

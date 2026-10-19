@@ -17,6 +17,17 @@ type Stage =
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
+/** By extension, or by content when a file has lost its extension (some downloads do). */
+function kindOf(name: string, text: string): "ics" | "csv" | "json" | null {
+  const ext = name.toLowerCase().match(/\.([a-z]+)$/)?.[1];
+  if (ext === "ics" || ext === "csv" || ext === "json") return ext;
+  const head = text.replace(/^﻿/, "").trimStart();
+  if (head.startsWith("BEGIN:VCALENDAR")) return "ics";
+  if (head.startsWith("{")) return "json";
+  if (/^[^\n]*title[^\n]*,/i.test(head)) return "csv";
+  return null;
+}
+
 const OUTCOME_LABEL: Record<Outcome, string> = { new: "New", updated: "Updated", unchanged: "Unchanged", skipped: "Skipped" };
 
 /** Import .ics or .csv with a preview before anything is written, or restore a JSON backup (§5.8–5.10). */
@@ -37,7 +48,7 @@ export function ImportPanel({ state }: { state: ReadyState }) {
     setError(null);
     setConfirmed(false);
     const text = await file.text();
-    const ext = file.name.toLowerCase().split(".").pop();
+    const ext = kindOf(file.name, text);
     try {
       if (ext === "ics") {
         setStage({ kind: "ics", fileName: file.name, plan: buildIcsPlan(parseIcs(text, state.zone), state.events.values(), state.zone) });

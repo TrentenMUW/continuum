@@ -1,12 +1,14 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect, useRef } from "react";
 import { closePanel, recurringTarget, type ReadyState } from "../../state/appStore";
 import { viewportStore } from "../../state/viewportStore";
 import { startOfCalDate } from "../../time/calDate";
 import { expandSeries } from "../../time/recurrence";
 import { CategoryManager } from "./CategoryManager";
 import { EventEditor, type OccurrenceContext } from "./EventEditor";
-import { ImportPanel } from "./ImportPanel";
+// The import code (ical.js, papaparse) loads only when Import is opened.
+const ImportPanel = lazy(() => import("./ImportPanel").then((m) => ({ default: m.ImportPanel })));
 import { MilestoneEditor } from "./MilestoneEditor";
+import { SettingsPanel } from "./SettingsPanel";
 import styles from "./Panel.module.css";
 
 const DAY_MS = 86_400_000;
@@ -24,6 +26,25 @@ export function SidePanel({ state }: { state: ReadyState }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [panel.kind]);
 
+  // Remember what had focus outside the panel, and put focus back there when it closes.
+  const lastOutside = useRef<HTMLElement | null>(null);
+  const asideRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const onFocus = (e: FocusEvent) => {
+      const t = e.target;
+      if (t instanceof HTMLElement || t instanceof SVGElement) {
+        if (!asideRef.current?.contains(t)) lastOutside.current = t as HTMLElement;
+      }
+    };
+    document.addEventListener("focusin", onFocus);
+    return () => document.removeEventListener("focusin", onFocus);
+  }, []);
+  useEffect(() => {
+    if (panel.kind !== "none") return;
+    const el = lastOutside.current;
+    if (el && el.isConnected && (document.activeElement === document.body || document.activeElement === null)) el.focus();
+  }, [panel.kind]);
+
   if (panel.kind === "none") return null;
 
   const event = panel.kind === "event" && panel.eventId ? (state.events.get(panel.eventId) ?? null) : null;
@@ -34,6 +55,8 @@ export function SidePanel({ state }: { state: ReadyState }) {
       ? "Categories"
       : panel.kind === "import"
         ? "Import or restore"
+        : panel.kind === "settings"
+          ? "Settings"
         : panel.kind === "milestone"
         ? milestone
           ? "Edit milestone"
@@ -45,7 +68,7 @@ export function SidePanel({ state }: { state: ReadyState }) {
             : "New event";
 
   return (
-    <aside className={styles.panel} aria-label={title}>
+    <aside ref={asideRef} className={styles.panel} aria-label={title}>
       <header className={styles.header}>
         <h2>{title}</h2>
         <button type="button" className={styles.close} aria-label="Close panel" onClick={closePanel}>
@@ -67,7 +90,12 @@ export function SidePanel({ state }: { state: ReadyState }) {
         {panel.kind === "milestone" && (
           <MilestoneEditor key={panel.milestoneId ?? "new"} milestone={milestone} zone={state.zone} now={viewportStore.now()} />
         )}
-        {panel.kind === "import" && <ImportPanel state={state} />}
+        {panel.kind === "import" && (
+          <Suspense fallback={<p className={styles.muted}>Loading…</p>}>
+            <ImportPanel state={state} />
+          </Suspense>
+        )}
+        {panel.kind === "settings" && <SettingsPanel state={state} />}
         {panel.kind === "categories" && <CategoryManager categories={state.categories} events={state.events} />}
       </div>
     </aside>

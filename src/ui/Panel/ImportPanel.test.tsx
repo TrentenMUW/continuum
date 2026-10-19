@@ -28,7 +28,8 @@ async function choose(name: string, text: string) {
   render(<App />);
   openPanel({ kind: "import" });
   const p = await screen.findByRole("complementary", { name: "Import or restore" });
-  fireEvent.change(within(p).getByLabelText("Choose a file"), { target: { files: [new File([text], name)] } });
+  // The import panel is loaded on demand, so wait for it.
+  fireEvent.change(await within(p).findByLabelText("Choose a file"), { target: { files: [new File([text], name)] } });
   return p;
 }
 
@@ -70,6 +71,11 @@ describe("import panel", () => {
   it("reports a malformed .ics file without changing anything", async () => {
     const p = await choose("malformed.ics", fixture("malformed.ics"));
     expect((await within(p).findByRole("alert")).textContent).toMatch(/valid \.ics/);
+  });
+
+  it("recognizes files that lost their extension by their content", async () => {
+    const p = await choose("download", fixture("google.ics"));
+    expect(await within(p).findByRole("region", { name: "Import preview" })).toBeTruthy();
   });
 
   it("summarizes a backup with correct plurals", async () => {

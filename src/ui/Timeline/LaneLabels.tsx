@@ -10,9 +10,9 @@ export function LaneLabels({ categories, heights }: { categories: Category[]; he
   return (
     <ul className={styles.laneLabels} aria-label="Category lanes">
       {categories.map((c, i) => (
-        <li key={c.id} className={styles.laneLabel} style={{ height: heights[i] ?? laneHeight(1) }}>
+        <li key={c.id} className={styles.laneLabel} style={{ height: heights[i] ?? laneHeight(1) }} title={c.name}>
           <span className={styles.swatch} style={{ background: c.color }} aria-hidden="true" />
-          {c.name}
+          <span className={styles.laneName}>{c.name}</span>
         </li>
       ))}
     </ul>

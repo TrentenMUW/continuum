@@ -35,6 +35,7 @@ export type Panel =
   | { kind: "event"; eventId: string | null; occurrenceKey?: string }
   | { kind: "milestone"; milestoneId: string | null }
   | { kind: "import" }
+  | { kind: "settings" }
   | { kind: "categories" };
 
 export interface ReadyState {

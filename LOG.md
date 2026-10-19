@@ -209,3 +209,33 @@ Format: what I asked → what changed / what the AI got wrong.
 - Build note: the bundle is now over 500 kB (ical.js and papaparse). That's a warning, not an error, and is for Stage 8 (code-split the import code).
 - 218 tests pass, typecheck clean, build OK.
 - Verified Stage 7 by hand ("These things are functional!").
+
+### Oct 19, 2026: Stage 8, polish and wrap-up
+- Asked for Stage 8 → I started with the §7 benchmark, since it was the biggest risk.
+  - `?benchmark` opens a **separate** IndexedDB (`continuum-benchmark`) seeded with 1,000 one-off events and 50 series (10 endless daily, 20 weekly, 8 monthly, 7 yearly, and 5 daily with COUNT=500), with a banner. Real data is never touched.
+  - Measured on the production build at 1280 px.
+- **AI got wrong:** `vite preview` served HTML for every asset, because `vite.config.ts` set `base: "/continuum/"` only for `command === "build"`, while preview runs as "serve". I first blamed the preview server starting before the build had finished, which was wrong. Fixed with Vite's `isPreview` flag. Playwright would have hit the same bug.
+- **First measurement (bad):** zooming out to 40 years froze up to **2.9 s**, and panning at 40 years up to 1.1 s. Profiling showed ical.js iteration at ~12 µs per occurrence plus my DST conversion at ~6 µs. Fixes, each measured:
+  1. Cached zone offsets (`offsetAt`): per-zone, per-year transition tables from `tzScan`, checked against `tzOffset` on 7 zones × 1,500 random instants from 1975–2100 plus every 2026 transition ±1 ms.
+  2. **Recurrence fast path.** I asked, and **chose "fast path, tested"**. Simple rules are expanded with calendar arithmetic, and ical.js still parses everything and expands the rest. A property test compares both engines on 2,000+ random rules (DST zones, month ends, Feb 29, intervals, weekdays, WKST, COUNT, UNTIL, all-day; >20,000 occurrences), and they must match exactly. It's 5× faster or more. D3 in SPEC.md is annotated.
+  3. Fixed one-year cache buckets, so zooming reuses expansions instead of redoing them at every power of two.
+  4. A fast label formatter: date-fns + TZDate took ~45 µs per event (57 ms for 1,268 events). The new one is checked against date-fns on 500 random events. **This also fixed a latent bug:** all-day *repeating* events labeled every occurrence with the series' first date.
+  5. `seriesEnd`: windows after a COUNT series ends are skipped. Before, every empty year re-walked all 500 occurrences, which `?benchmark` timing marks traced as **165 ms per query**.
+- **Final benchmark (production build, 1280 px):**
+  - pan at 3 h: worst frame 7 ms
+  - pan at 1 month: worst 42 ms
+  - pan at 40 years: worst 49 ms
+  - zoom wiggles at each span: worst 7 / 35 / 83 ms, with 1 of 119 frames over 50 ms at 40 years
+  - **Still hitchy:** a fast sweep from 1 month all the way to 40 years (≈35 ms median, frames up to ~110–200 ms) while never-seen scales are first expanded. Once seen, they're cached.
+- **Settings:** theme (dark/light), display time zone (device or a validated IANA name), snap threshold, and "Your data" (local-storage explanation, persistent-storage status from `navigator.storage.persisted()`, usage/quota, Export a backup, and an "Ask to keep my data" button per D16). About links to the GitHub repo.
+- **Light theme:** all colors are now tokens (the error, warning, danger, and lane colors were hard-coded), with `[data-theme="light"]` overrides.
+- **Responsive:** the toolbar wraps instead of overflowing, the side panel floats over the timeline at ≤900 px, lane labels narrow to 132 px, and long lane names end in an ellipsis with a tooltip. Checked at 674 px wide.
+- **Accessibility:**
+  - Focus returns to whatever opened the panel when it closes.
+  - The form's submit button was renamed from "Add event" to **"Create event"**, because it was indistinguishable from the toolbar's "Add Event" to screen readers (Playwright caught this).
+  - Reduced motion was already respected for snapping and Return to Now.
+- **Error states:** a clear storage-blocked screen with Reload, error boundaries around the timeline and the side panel, and a dismissible notice if Export fails.
+- **Import:** files that lost their extension are recognized by content (Playwright downloads have no extension), and the import code (papaparse) now loads only when Import is opened (33 kB). The main bundle is still 509 kB (158 kB gzipped) because recurrence needs ical.js at startup. Vite warns over 500 kB, and I left the warning rather than hide it.
+- **Playwright** (`npm run test:e2e`, 7 smoke tests on the production build at `/continuum/`): clean load with no console errors, adding an event with only the keyboard (and surviving a reload), keyboard pan/zoom/N, .ics import and unchanged re-import, bad CSV rows, export → add → restore, and light theme + About link. Added to CI before deploy.
+- README: setup, scripts, testing, benchmark mode, deployment, the ICS/CSV formats, backup and restore, storage limits, and keyboard shortcuts.
+- 229 unit/component tests and 7 Playwright tests pass, typecheck clean, build OK.

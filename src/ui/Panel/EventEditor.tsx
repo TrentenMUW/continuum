@@ -295,7 +295,7 @@ export function EventEditor({ event, occurrence, categories, zone, now }: EventE
       ) : (
         <div className={styles.actions}>
           <button type="submit" className={styles.primary} disabled={saving}>
-            {event ? "Save" : "Add event"}
+            {event ? "Save" : "Create event"}
           </button>
           <button type="button" onClick={closePanel}>
             Cancel

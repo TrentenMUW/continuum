@@ -205,6 +205,12 @@
   text-overflow: ellipsis;
 }
 
+.laneName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .swatch {
   flex: none;
   width: 10px;
@@ -249,5 +255,5 @@
 }
 
 .laneOdd {
-  fill: rgba(255, 255, 255, 0.015);
+  fill: var(--lane-alt);
 }

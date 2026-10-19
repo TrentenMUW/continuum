@@ -55,7 +55,7 @@ describe("event editor (§5.6)", () => {
   it("shows inline errors and writes nothing for an invalid event", async () => {
     render(<App />);
     fireEvent.click(screen.getByRole("button", { name: "Add Event" }));
-    fireEvent.click(within(panel()).getByRole("button", { name: "Add event" }));
+    fireEvent.click(within(panel()).getByRole("button", { name: "Create event" }));
 
     expect(await within(panel()).findByText("Enter a title.")).toBeTruthy();
     expect(within(panel()).getByText("Choose at least one category.")).toBeTruthy();
@@ -70,7 +70,7 @@ describe("event editor (§5.6)", () => {
     fireEvent.change(within(p).getByLabelText("Start"), { target: { value: "2026-10-24T11:00" } });
     fireEvent.change(within(p).getByLabelText("End"), { target: { value: "2026-10-24T09:00" } });
     fireEvent.click(within(p).getByLabelText(/Health & Exercise/));
-    fireEvent.click(within(p).getByRole("button", { name: "Add event" }));
+    fireEvent.click(within(p).getByRole("button", { name: "Create event" }));
 
     expect(await within(p).findByText("The end must be after the start.")).toBeTruthy();
     expect(await db.events.count()).toBe(0);
@@ -86,7 +86,7 @@ describe("event editor (§5.6)", () => {
     for (const name of [/Health & Exercise/, /Hobbies & Recreation/, /Social & Relationships/]) {
       fireEvent.click(within(p).getByLabelText(name));
     }
-    fireEvent.click(within(p).getByRole("button", { name: "Add event" }));
+    fireEvent.click(within(p).getByRole("button", { name: "Create event" }));
 
     await waitFor(() => expect(screen.queryByRole("complementary")).toBeNull());
     const [saved] = await db.events.toArray();
@@ -133,7 +133,7 @@ describe("event editor (§5.6)", () => {
     fireEvent.change(within(p).getByLabelText("Start"), { target: { value: "2026-11-03" } });
     fireEvent.change(within(p).getByLabelText("End (inclusive)"), { target: { value: "2026-11-04" } });
     fireEvent.click(within(p).getByLabelText(/Work & Career/));
-    fireEvent.click(within(p).getByRole("button", { name: "Add event" }));
+    fireEvent.click(within(p).getByRole("button", { name: "Create event" }));
     await waitFor(() => expect(screen.queryByRole("complementary")).toBeNull());
 
     const [saved] = await db.events.toArray();
@@ -163,7 +163,7 @@ describe("recurring events (§5.6, D13)", () => {
     // Monday is preselected from the start date.
     expect((within(p).getByLabelText("Mon") as HTMLInputElement).checked).toBe(true);
     fireEvent.click(within(p).getByLabelText(/Education/));
-    fireEvent.click(within(p).getByRole("button", { name: "Add event" }));
+    fireEvent.click(within(p).getByRole("button", { name: "Create event" }));
     await waitFor(() => expect(screen.queryByRole("complementary")).toBeNull());
 
     const [series] = await db.events.toArray();

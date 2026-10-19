@@ -25,10 +25,6 @@ describe("App shell", () => {
 
     expect(screen.getByRole("toolbar", { name: "Continuum controls" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Continuum" })).toBeTruthy();
-    for (const name of ["Settings"]) {
-      const button = screen.getByRole("button", { name }) as HTMLButtonElement;
-      expect(button.disabled, name).toBe(true);
-    }
     for (const name of ["Zoom out", "Zoom in", "Snap"]) {
       const button = screen.getByRole("button", { name }) as HTMLButtonElement;
       expect(button.disabled, name).toBe(false);

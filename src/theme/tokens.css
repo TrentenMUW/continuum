@@ -1,4 +1,4 @@
-/* Design tokens. Dark is the default theme (D18); light arrives in Stage 8. */
+/* Design tokens. Dark is the default theme (D18); light is chosen in Settings. */
 :root {
   --bg: #0f1115;
   --bg-raised: #161920;
@@ -8,6 +8,7 @@
   --text-muted: #8b919c;
   --text-disabled: #555b66;
   --accent: #c9d1e0;
+  --on-accent: #0f1115;
   --focus-ring: #7aa7ff;
 
   /* The Now marker's color is not used by any category (§5.11). */
@@ -16,6 +17,14 @@
 
   --gridline: rgba(255, 255, 255, 0.06);
   --gridline-strong: rgba(255, 255, 255, 0.12);
+  --lane-alt: rgba(255, 255, 255, 0.015);
+
+  --error: #ff8a8a;
+  --invalid: #ff6b6b;
+  --warning: #e8c37a;
+  --danger-border: #7a3434;
+  --danger-text: #ff9b9b;
+  --danger-bg: rgba(255, 80, 80, 0.06);
 
   --toolbar-height: 52px;
   --lane-label-width: 180px;
@@ -29,4 +38,40 @@
   --font-size: 14px;
 
   color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #fbfbfa;
+  --bg-raised: #f1f1ee;
+  --bg-hover: #e6e6e2;
+  --border: #d6d6d0;
+  --text: #1c1e22;
+  --text-muted: #5f646d;
+  --text-disabled: #a3a7ae;
+  --accent: #2b3442;
+  --on-accent: #ffffff;
+  --focus-ring: #2f6fe0;
+
+  --now: #e0193d;
+  --milestone: #3a3326;
+
+  --gridline: rgba(0, 0, 0, 0.07);
+  --gridline-strong: rgba(0, 0, 0, 0.16);
+  --lane-alt: rgba(0, 0, 0, 0.025);
+
+  --error: #c42b2b;
+  --invalid: #d33a3a;
+  --warning: #8a5a00;
+  --danger-border: #e3a5a5;
+  --danger-text: #b42323;
+  --danger-bg: rgba(220, 40, 40, 0.06);
+
+  color-scheme: light;
+}
+
+/* Narrower lane labels on tablets. */
+@media (max-width: 900px) {
+  :root {
+    --lane-label-width: 132px;
+  }
 }

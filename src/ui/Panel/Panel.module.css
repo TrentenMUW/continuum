@@ -8,6 +8,18 @@
   background: var(--bg-raised);
 }
 
+/* On tablets the panel floats over the timeline instead of squeezing it. */
+@media (max-width: 900px) {
+  .panel {
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+  }
+}
+
 .header {
   display: flex;
   align-items: center;
@@ -83,7 +95,6 @@
   background: var(--bg);
   color: var(--text);
   font: inherit;
-  color-scheme: dark;
 }
 
 .check input[type="radio"],
@@ -94,7 +105,7 @@
 
 .form input[aria-invalid="true"],
 .fieldset[aria-invalid="true"] {
-  border-color: #ff6b6b;
+  border-color: var(--invalid);
 }
 
 .form textarea {
@@ -131,7 +142,7 @@
 
 .error {
   margin: 0;
-  color: #ff8a8a;
+  color: var(--error);
   font-size: 12px;
 }
 
@@ -165,7 +176,7 @@
 .form .primary {
   background: var(--accent);
   border-color: var(--accent);
-  color: var(--bg);
+  color: var(--on-accent);
   font-weight: 600;
 }
 
@@ -174,8 +185,8 @@
 }
 
 .form .danger {
-  border-color: #7a3434;
-  color: #ff9b9b;
+  border-color: var(--danger-border);
+  color: var(--danger-text);
 }
 
 .confirm {
@@ -183,9 +194,9 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-3);
-  border: 1px solid #7a3434;
+  border: 1px solid var(--danger-border);
   border-radius: var(--radius);
-  background: rgba(255, 80, 80, 0.06);
+  background: var(--danger-bg);
 }
 
 .confirm p {
@@ -238,6 +249,14 @@
   width: auto;
 }
 
+.form p {
+  margin: 0;
+}
+
+.form a {
+  color: var(--focus-ring);
+}
+
 .subhead {
   margin: 0;
   font-size: 14px;
@@ -276,7 +295,7 @@
 }
 
 .warnings {
-  color: #e8c37a;
+  color: var(--warning);
   font-size: 12px;
 }
 

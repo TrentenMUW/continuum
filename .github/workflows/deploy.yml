@@ -27,6 +27,9 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      # Playwright smoke tests against the production build (D17). A failure blocks the deploy.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
