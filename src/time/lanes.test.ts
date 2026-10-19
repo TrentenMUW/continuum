@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Occurrence } from "../data/index";
 import type { CalendarEvent } from "../data/types";
-import { densityRuns, mergeIntervals } from "./density";
+import { densityRuns, mergeIntervals, MIN_DENSITY_OPACITY } from "./density";
 import { assignRows, laneHeight, layoutLanes, ROW_HEIGHT } from "./lanes";
 import { DAY_MS, HOUR_MS, MINUTE_MS, YEAR_MS, makeRenderWindow, viewportAt } from "./viewport";
 
@@ -110,9 +110,16 @@ describe("densityRuns", () => {
     expect(runs).toEqual([{ x: 2, width: 1, opacity: 0.5 }]);
   });
 
-  it("never widens short events: a 6-minute event covers a tenth of its column", () => {
+  it("never widens short events: a 6-minute event stays in its one column, drawn at the minimum darkness", () => {
     const runs = densityRuns([[T + 4 * HOUR_MS, T + 4 * HOUR_MS + 6 * MINUTE_MS]], rw);
-    expect(runs).toEqual([{ x: 4, width: 1, opacity: 0.1 }]);
+    expect(runs).toEqual([{ x: 4, width: 1, opacity: MIN_DENSITY_OPACITY }]);
+  });
+
+  it("keeps even a tiny share of a column visible, and leaves shares above the floor untouched", () => {
+    const tiny = densityRuns([[T + 3 * HOUR_MS, T + 3 * HOUR_MS + 1000]], rw); // 1 second in an hour
+    expect(tiny).toEqual([{ x: 3, width: 1, opacity: 0.25 }]);
+    const forty = densityRuns([[T + 3 * HOUR_MS, T + 3 * HOUR_MS + 24 * MINUTE_MS]], rw);
+    expect(forty).toEqual([{ x: 3, width: 1, opacity: 0.4 }]);
   });
 
   it("counts overlapping events once and caps at full coverage", () => {

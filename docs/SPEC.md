@@ -62,7 +62,7 @@ These override anything older. Change one only with Trenten's agreement, and log
 
 **D9. The Now marker sits at 25% from the left** in live-follow mode, since the app is forward-looking. Return to Now restores that position and resumes live-follow. The default zoom shows a span of 3 days.
 
-**D10. Events narrower than 1 px aren't drawn as rectangles.** Each lane instead draws a **density strip**: per-pixel-column bins whose opacity is the fraction of that column's time covered by the lane's events. Short events are never artificially widened, and you can still see how busy each part of a decade is. Events wider than about 40 px show their titles. Narrower ones show none, but keep their tooltip and click target.
+**D10. Events narrower than 1 px aren't drawn as rectangles.** Each lane instead draws a **density strip**: per-pixel-column bins whose opacity is the fraction of that column's time covered by the lane's events. Short events are never artificially widened, and you can still see how busy each part of a decade is. *(Changed in Stage 4, agreed with Trenten: any column with some activity is drawn at an opacity of at least 0.25, so sparse events stay visible at wide zoom. Above that floor, opacity is the true fraction.)* Events wider than about 40 px show their titles. Narrower ones show none, but keep their tooltip and click target.
 
 **D11. Past translucency.** Each event is drawn once, clipped at the Now x-position. The past portion uses `pastEventOpacity` (default 0.35), and the future portion is fully opaque. This is calculated at render time and never stored.
 

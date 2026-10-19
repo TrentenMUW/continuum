@@ -98,3 +98,6 @@ Format: what I asked → what changed / what the AI got wrong.
 - My browser test events were cleared from the local dev database afterward.
 - **Open question for me (D10):** density opacity is the true covered fraction, as specified. With sparse data (a handful of events), the strips fade to invisible at decade zoom. A minimum visible opacity would show that something exists there, but it would no longer be a true fraction.
 - 107 tests pass, typecheck clean, build OK.
+- Answered the D10 question: add a minimum darkness of about 1/4 → any column with activity now draws at an opacity of at least 0.25, and busier columns keep their true fraction. Updated D10 in SPEC.md.
+  - **AI got wrong:** the floor exposed a hidden floating-point bug. An interval ending exactly on a column boundary computed as 3.9999999 px, leaving a ~1e-7 sliver in the previous column. Rounding used to hide it, but the floor turned it into a visible extra column. Fixed by snapping edges within 1e-6 px to the boundary. Three existing tests caught it.
+  - 108 tests pass.
