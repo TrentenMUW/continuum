@@ -1,0 +1,160 @@
+.timeline {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  user-select: none;
+  touch-action: none;
+}
+
+/* Header and body reserve the same scrollbar gutter, so their plots line up exactly. */
+.header,
+.body {
+  display: flex;
+  scrollbar-gutter: stable;
+}
+
+.header {
+  flex: none;
+  overflow-y: hidden;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-raised);
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto; /* D7: lanes scroll vertically on their own; the page never does */
+  align-items: stretch;
+}
+
+.corner {
+  flex: none;
+  width: var(--lane-label-width);
+  padding: var(--space-2) var(--space-3);
+  border-right: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 11px;
+  align-self: flex-end;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plot {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  cursor: grab;
+}
+
+.plot:active {
+  cursor: grabbing;
+}
+
+.ruler {
+  position: relative;
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+}
+
+.lanesSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.contextLabel {
+  position: absolute;
+  left: 0;
+  top: 20px;
+  padding: 0 var(--space-2) 0 5px;
+  background: var(--bg-raised);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 16px;
+  pointer-events: none;
+}
+
+.majorTick {
+  stroke: var(--gridline-strong);
+}
+
+.minorTick {
+  stroke: var(--text-muted);
+}
+
+.majorLabel {
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.minorLabel {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gridline {
+  stroke: var(--gridline);
+}
+
+.gridlineStrong {
+  stroke: var(--gridline-strong);
+}
+
+.milestoneLine {
+  stroke: var(--milestone);
+  stroke-width: 2;
+}
+
+.milestoneLabel {
+  fill: var(--milestone);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.laneLabels {
+  flex: none;
+  width: var(--lane-label-width);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  align-self: flex-start;
+  min-height: 100%;
+}
+
+.laneLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.swatch {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.laneEven {
+  fill: transparent;
+}
+
+.laneOdd {
+  fill: rgba(255, 255, 255, 0.015);
+}

@@ -47,4 +47,4 @@ tests/fixtures/  FAKE .ics / .csv / .json files only.
 10. **End of session.** Update "Current status" below: the current stage, what works, what's next, and any known issues.
 
 ## Current status
-Stage 1 built, waiting for Trenten's "Verify by hand". It includes the Vite/React/TS scaffold, the dark shell and toolbar (all controls disabled), the Dexie v1 schema with a migrations list, seeding (D2), and settings loading. Tests, typecheck, and build pass. No deploy workflow exists yet (Stage 2). Next: Stage 2, the timeline engine plus the first deploy. Known issues: none.
+Stage 2 built and deployed, waiting for Trenten's "Verify by hand". Working: Stage 1 (shell, Dexie v1, seed, settings), plus the viewport store with rAF and transform-only panning, wheel/pinch/drag/keyboard pan and zoom, zoom buttons, the Snap toggle (persisted), calendar-true adaptive ticks, sticky lane labels, static milestones, and the GitHub Actions deploy to Pages. Next: Stage 3 (Now marker, live-follow, Return to Now, translucency). Known issues: the toolbar overflows below ~1000 px wide (responsive layout is Stage 8). The `N` key does nothing until Stage 3.

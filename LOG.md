@@ -26,3 +26,23 @@ Format: what I asked → what changed / what the AI got wrong.
 - Dark theme tokens, a full-viewport shell, and the §5.11 toolbar, with every control disabled and its tooltip naming the stage it arrives in. The Now marker color (`#ff3b5c`) isn't used by any category.
 - 12 Vitest tests (seed, settings, app shell), typecheck clean, build OK. Checked in the browser: 8 categories and one 2065-01-01 milestone in IndexedDB, still 8 and 1 after repeated reloads, no console errors.
 - Note: DevTools lists categories in id (UUID) order, not lane order. Their `order` field is 1–8 as specified.
+- Verified Stage 1 by hand and approved Stage 2.
+
+### Oct 18, 2026: Stage 2, timeline engine and first deploy
+- Asked for Stage 2 → pure time code in `src/time/`:
+  - `viewport.ts`: the D6 mapping, cursor-centered zoom, a 10 min–150 yr clamp, and a render window buffered one viewport width on each side.
+  - `ticks.ts`: calendar-true ticks at 13 levels.
+  - `snap.ts`: D8 snap targets.
+  - `calDate.ts`: calendar date → local midnight.
+- Ticks never add a fixed day or month length. Day and longer levels step by calendar fields through `TZDate`. Sub-day levels walk real time and keep instants whose local minute-of-day fits the level, so the spring-forward night has no 02:00 tick and the fall-back night has two 01:00 ticks.
+- Panning without React (D5): every layer is laid out relative to a reference time, and the store sets the layer's `transform` once per frame. React re-renders only when the scale changes or the view leaves the buffer.
+- **AI got wrong:** three tick-level test expectations used bad arithmetic. For example, it expected 3-hour ticks at a 3-day span on 1600 px, but they'd be only 67 px apart. The code was right and the expectations were fixed. Separately, the first browser check showed the 2065 milestone being drawn ~900,000 px off-screen. Milestones are now filtered to the buffered window.
+- Dev-server gotcha: after adding a new export, Vite's hot reload kept a stale module, and a full restart fixed it.
+- Checked in the browser at 1400 px:
+  - zoom keeps the cursor's time fixed (ticks landed within 0.00003 px of the prediction)
+  - Sun Nov 1, 2026 measures exactly 25/24 of its neighbors
+  - labels progress hours → days → weeks → months → quarters → years → decades
+  - the 2065 milestone sits between the 2060 and 2070 ticks, and panning continues past 3000
+  - with Snap on, a 6.46-day zoom settles at exactly 7 days, and with it off it stays put
+- Added `.github/workflows/deploy.yml`: Node 24, `npm ci` → typecheck → test → build → upload-pages-artifact → deploy-pages, using the latest major action versions (checkout v7, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5).
+- 46 tests pass, typecheck clean, build OK.

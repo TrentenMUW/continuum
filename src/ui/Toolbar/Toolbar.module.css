@@ -47,6 +47,12 @@
   cursor: not-allowed;
 }
 
+.group .toggleOn {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
 .group .primary:not(:disabled) {
   background: var(--accent);
   border-color: var(--accent);

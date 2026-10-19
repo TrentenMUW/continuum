@@ -25,13 +25,35 @@ describe("App shell", () => {
 
     expect(screen.getByRole("toolbar", { name: "Continuum controls" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Continuum" })).toBeTruthy();
-    for (const name of ["Add Event", "Add Milestone", "Return to Now", "Zoom out", "Zoom in", "Snap", "Import", "Export", "Settings"]) {
+    for (const name of ["Add Event", "Add Milestone", "Return to Now", "Import", "Export", "Settings"]) {
       const button = screen.getByRole("button", { name }) as HTMLButtonElement;
       expect(button.disabled, name).toBe(true);
+    }
+    for (const name of ["Zoom out", "Zoom in", "Snap"]) {
+      const button = screen.getByRole("button", { name }) as HTMLButtonElement;
+      expect(button.disabled, name).toBe(false);
     }
     expect(screen.getByLabelText("Live: off")).toBeTruthy();
 
     await waitFor(() => expect(getAppState().status).toBe("ready"));
+  });
+
+  it("toggles Snap and persists it", async () => {
+    await initApp(db);
+    render(<App />);
+    const snap = (await screen.findByRole("button", { name: "Snap" })) as HTMLButtonElement;
+    expect(snap.getAttribute("aria-pressed")).toBe("false");
+    snap.click();
+    await waitFor(() => expect(snap.getAttribute("aria-pressed")).toBe("true"));
+    await waitFor(async () => expect((await db.settings.get("app"))!.snapEnabled).toBe(true));
+  });
+
+  it("shows a lane label for each visible category", async () => {
+    await initApp(db);
+    render(<App />);
+    const lanes = await screen.findByRole("list", { name: "Category lanes" });
+    expect(lanes.querySelectorAll("li")).toHaveLength(8);
+    expect(lanes.textContent).toContain("Sleep & Rest");
   });
 
   it("loads the seed into the store", async () => {

@@ -12,6 +12,7 @@
 
   /* The Now marker's color is not used by any category (§5.11). */
   --now: #ff3b5c;
+  --milestone: #f1eadb;
 
   --gridline: rgba(255, 255, 255, 0.06);
   --gridline-strong: rgba(255, 255, 255, 0.12);

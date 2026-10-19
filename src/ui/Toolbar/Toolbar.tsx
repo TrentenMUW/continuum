@@ -2,10 +2,14 @@ import styles from "./Toolbar.module.css";
 
 interface ToolbarProps {
   live: boolean;
+  snapEnabled: boolean;
+  onZoomIn: () => void;
+  onZoomOut: () => void;
+  onToggleSnap: () => void;
 }
 
 /** §5.11 toolbar. Controls are disabled until the stage that implements them. */
-export function Toolbar({ live }: ToolbarProps) {
+export function Toolbar({ live, snapEnabled, onZoomIn, onZoomOut, onToggleSnap }: ToolbarProps) {
   return (
     <header className={styles.toolbar} role="toolbar" aria-label="Continuum controls">
       <h1 className={styles.title}>Continuum</h1>
@@ -29,13 +33,19 @@ export function Toolbar({ live }: ToolbarProps) {
       </div>
 
       <div className={styles.group}>
-        <button type="button" aria-label="Zoom out" disabled title="Coming in Stage 2">
+        <button type="button" aria-label="Zoom out" title="Zoom out (−)" onClick={onZoomOut}>
           −
         </button>
-        <button type="button" aria-label="Zoom in" disabled title="Coming in Stage 2">
+        <button type="button" aria-label="Zoom in" title="Zoom in (+)" onClick={onZoomIn}>
           +
         </button>
-        <button type="button" aria-pressed={false} disabled title="Coming in Stage 2">
+        <button
+          type="button"
+          aria-pressed={snapEnabled}
+          className={snapEnabled ? styles.toggleOn : undefined}
+          title="Snap zoom to a day, week, month, or year"
+          onClick={onToggleSnap}
+        >
           Snap
         </button>
       </div>
