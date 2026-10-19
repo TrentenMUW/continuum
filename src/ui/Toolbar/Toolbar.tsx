@@ -6,10 +6,11 @@ interface ToolbarProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onToggleSnap: () => void;
+  onReturnToNow: () => void;
 }
 
 /** §5.11 toolbar. Controls are disabled until the stage that implements them. */
-export function Toolbar({ live, snapEnabled, onZoomIn, onZoomOut, onToggleSnap }: ToolbarProps) {
+export function Toolbar({ live, snapEnabled, onZoomIn, onZoomOut, onToggleSnap, onReturnToNow }: ToolbarProps) {
   return (
     <header className={styles.toolbar} role="toolbar" aria-label="Continuum controls">
       <h1 className={styles.title}>Continuum</h1>
@@ -24,10 +25,14 @@ export function Toolbar({ live, snapEnabled, onZoomIn, onZoomOut, onToggleSnap }
       </div>
 
       <div className={styles.group}>
-        <span className={live ? styles.liveOn : styles.liveOff} aria-label={live ? "Live: following now" : "Live: off"}>
+        <span
+          className={live ? styles.liveOn : styles.liveOff}
+          role="status"
+          aria-label={live ? "Live: following now" : "Live: off"}
+        >
           LIVE
         </span>
-        <button type="button" disabled title="Coming in Stage 3">
+        <button type="button" title="Return to Now (N)" onClick={onReturnToNow} disabled={live}>
           Return to Now
         </button>
       </div>

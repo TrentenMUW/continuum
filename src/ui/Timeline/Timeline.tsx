@@ -6,6 +6,7 @@ import { rulerTicks } from "../../time/ticks";
 import { wheelZoomFactor } from "../../time/viewport";
 import { LaneLabels } from "./LaneLabels";
 import { Lanes } from "./Lanes";
+import { NowMarker } from "./NowMarker";
 import { Ruler } from "./Ruler";
 import styles from "./Timeline.module.css";
 
@@ -31,7 +32,7 @@ export function Timeline({ settings, zone, categories, milestones }: TimelinePro
   const plotRef = useRef<HTMLDivElement>(null);
   const rw = useRenderWindow();
 
-  // Measure the plot width; the first measurement sets up the initial view (D9).
+  // Measure the plot width; the first measurement sets up the initial live view (D9).
   useEffect(() => {
     const el = plotRef.current;
     if (!el) return;
@@ -39,7 +40,7 @@ export function Timeline({ settings, zone, categories, milestones }: TimelinePro
       const width = Math.round(entry!.contentRect.width);
       if (width <= 0) return;
       if (!viewportStore.isInitialized()) {
-        viewportStore.init(width, settings.defaultSpanMs, settings.nowMarkerPosition, Date.now());
+        viewportStore.init(width, settings.defaultSpanMs, settings.nowMarkerPosition);
       } else {
         viewportStore.setWidth(width);
       }
@@ -67,12 +68,12 @@ export function Timeline({ settings, zone, categories, milestones }: TimelinePro
     return () => root.removeEventListener("wheel", onWheel);
   }, []);
 
-  // Keyboard: â†/â†’ pan, +/âˆ’ zoom (D7). N (Return to Now) arrives with live time in Stage 3.
+  // Keyboard: Left/Right pan, +/- zoom, N returns to Now (D7).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const target = e.target as HTMLElement | null;
-      if (target?.closest("input, textarea, select, [contenteditable='true']")) return;
+      const target = e.target;
+      if (target instanceof Element && target.closest("input, textarea, select, [contenteditable='true']")) return;
       const w = viewportStore.getWidth();
       switch (e.key) {
         case "ArrowLeft":
@@ -90,6 +91,10 @@ export function Timeline({ settings, zone, categories, milestones }: TimelinePro
         case "_":
           viewportStore.zoomAt(w / 2, 1 / KEY_ZOOM);
           viewportStore.snapNow(w / 2);
+          break;
+        case "n":
+        case "N":
+          viewportStore.returnToNow();
           break;
         default:
           return;
@@ -135,14 +140,23 @@ export function Timeline({ settings, zone, categories, milestones }: TimelinePro
       <div className={styles.body}>
         <LaneLabels categories={visibleCategories} />
         <div className={styles.plot} {...drag}>
-          {rw && ticks && <Lanes rw={rw} ticks={ticks} laneCount={visibleCategories.length} milestones={windowMilestones} />}
+          {rw && ticks && (
+            <Lanes
+              rw={rw}
+              ticks={ticks}
+              laneCount={visibleCategories.length}
+              milestones={windowMilestones}
+              pastOpacity={settings.pastEventOpacity}
+            />
+          )}
         </div>
       </div>
+      <NowMarker zone={zone} />
     </div>
   );
 }
 
-/** Drag on empty timeline pans (D7). */
+/** Drag on empty timeline pans (D7). A click without movement doesn't count as a pan. */
 function useDragToPan() {
   const [handlers] = useState(() => {
     let lastX: number | null = null;
@@ -153,7 +167,7 @@ function useDragToPan() {
         e.currentTarget.setPointerCapture(e.pointerId);
       },
       onPointerMove(e: ReactPointerEvent<HTMLElement>) {
-        if (lastX === null) return;
+        if (lastX === null || e.clientX === lastX) return;
         viewportStore.panBy(e.clientX - lastX);
         lastX = e.clientX;
       },

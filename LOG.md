@@ -47,3 +47,21 @@ Format: what I asked → what changed / what the AI got wrong.
 - Added `.github/workflows/deploy.yml`: Node 24, `npm ci` → typecheck → test → build → upload-pages-artifact → deploy-pages, using the latest major action versions (checkout v7, setup-node v7, configure-pages v6, upload-pages-artifact v5, deploy-pages v5).
 - 46 tests pass, typecheck clean, build OK.
 - First deploy succeeded. https://trentenmuw.github.io/continuum/ returns 200, both assets load from `/continuum/assets/` with 200, and the console is clean. The Actions run noted that `ubuntu-latest` moves to Ubuntu 26 starting Oct 19, 2026. No change is needed, but if CI breaks after that date, check there first.
+- Verified Stage 2 by hand and approved Stage 3.
+
+### Oct 18, 2026: Stage 3, live time
+- Asked for Stage 3 → the viewport store gained live-follow. Each frame while live sets `anchorTime = clock()` and `anchorX = 25%` of the width, so position always comes from the clock, never from summed steps. A unit test with irregular frame gaps (1 ms to 60 s) shows exact anchoring and no drift.
+- Panning by drag, Shift+wheel, horizontal swipe, or arrow keys turns live off. Return to Now (button or N) glides back over 400 ms, or jumps instantly with reduced motion. It keeps the current zoom and resumes live.
+- `visibilitychange` recomputes immediately, cancelling any pending frame so two rAF loops can't run at once. **AI got wrong:** the first version called `frame()` directly, which would have started a second loop. It was caught in review before testing, and a unit test now covers it.
+- Now marker: a full-height line in a color no category uses (`--now`), with a live "Sun 18 Oct 2026, 22:48:32" label. It's an HTML overlay positioned from the clock every frame, and the label only re-formats when the second changes.
+- D11 translucency: events are drawn once inside one SVG alpha mask, split at Now's x and updated every frame. The past side is `pastEventOpacity` (0.35) and the future side is opaque. `splitAtNow` is unit-tested.
+- **Interpretation, needs my OK:** the spec doesn't say what zooming does in live mode. Zooming around the cursor would pull Now off its 25% spot. So in live mode, zoom centers on the Now marker and live stays on. When live is off, zoom is cursor-centered as before.
+- Return to Now is disabled while already live.
+- **AI got wrong:**
+  - A PowerShell `Get-Content`/`Set-Content` round-trip in Stage 2 garbled the `←/→ +/−` characters in a comment in `Timeline.tsx`, and the mangled text got committed. Fixed by rewriting the file, and no other files were affected. Edits go through the editor tool now, not PowerShell text replacement.
+  - The key handler assumed the event target was an element. Fixed with an `instanceof Element` check.
+- Checked in the browser:
+  - At a 10-minute span the ticks moved left 1.01 px in 3 s (expected 1.01) while the Now marker moved 0 px.
+  - Pan → LIVE off, Return to Now → LIVE on with Now at exactly 25.00%, arrow key → off, N → on.
+  - The temporary 4-hour event spanning Now was translucent before the marker and solid after. It was removed before the stage ended, as the spec requires.
+- 60 tests pass, typecheck clean, build OK.

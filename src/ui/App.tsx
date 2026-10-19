@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { getAppState, initApp, updateSettings, useAppState } from "../state/appStore";
-import { viewportStore } from "../state/viewportStore";
+import { useLive, viewportStore } from "../state/viewportStore";
 import { resolveDisplayZone } from "../time/zones";
 import { Timeline } from "./Timeline/Timeline";
 import { Toolbar } from "./Toolbar/Toolbar";
@@ -10,6 +10,7 @@ export function App() {
   const ready = useAppState((s) => (s.status === "ready" ? s : null));
   const errorMessage = useAppState((s) => (s.status === "error" ? s.message : null));
   const status = useAppState((s) => s.status);
+  const live = useLive();
 
   useEffect(() => {
     void initApp();
@@ -27,8 +28,9 @@ export function App() {
   return (
     <div className={styles.app}>
       <Toolbar
-        live={false}
+        live={live}
         snapEnabled={snapEnabled}
+        onReturnToNow={() => viewportStore.returnToNow()}
         onZoomIn={() => viewportStore.zoomButton(1)}
         onZoomOut={() => viewportStore.zoomButton(-1)}
         onToggleSnap={toggleSnap}

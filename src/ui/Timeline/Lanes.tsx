@@ -1,5 +1,5 @@
-import { memo, useRef } from "react";
-import { useLayerTransform } from "../../state/viewportStore";
+import { memo, useId, useLayoutEffect, useRef, type ReactNode } from "react";
+import { useLayerTransform, viewportStore } from "../../state/viewportStore";
 import type { RulerTicks } from "../../time/ticks";
 import { layerX, type RenderWindow } from "../../time/viewport";
 import type { PlacedMilestone } from "./Timeline";
@@ -12,9 +12,11 @@ interface LanesProps {
   ticks: RulerTicks;
   laneCount: number;
   milestones: PlacedMilestone[];
+  pastOpacity: number;
+  children?: ReactNode; // event shapes, in layer coordinates (Stage 4)
 }
 
-export const Lanes = memo(function Lanes({ rw, ticks, laneCount, milestones }: LanesProps) {
+export const Lanes = memo(function Lanes({ rw, ticks, laneCount, milestones, pastOpacity, children }: LanesProps) {
   const layerRef = useRef<SVGGElement>(null);
   useLayerTransform(layerRef, rw);
   const height = Math.max(1, laneCount) * LANE_HEIGHT;
@@ -41,6 +43,9 @@ export const Lanes = memo(function Lanes({ rw, ticks, laneCount, milestones }: L
           const x = layerX(rw, t);
           return <line key={`M${t}`} x1={x} x2={x} y1={0} y2="100%" className={styles.gridlineStrong} />;
         })}
+        <PastMask rw={rw} pastOpacity={pastOpacity}>
+          {children}
+        </PastMask>
         {milestones.map(({ milestone, t, complete }) => {
           const x = layerX(rw, t);
           return (
@@ -59,3 +64,38 @@ export const Lanes = memo(function Lanes({ rw, ticks, laneCount, milestones }: L
     </svg>
   );
 });
+
+/**
+ * D11: events are drawn once. One alpha mask, split at Now's x and updated each frame,
+ * makes the past portion `pastOpacity` and leaves the future portion opaque.
+ */
+function PastMask({ rw, pastOpacity, children }: { rw: RenderWindow; pastOpacity: number; children?: ReactNode }) {
+  const id = `past-mask-${useId().replace(/[^a-zA-Z0-9_-]/g, "")}`;
+  const pastRef = useRef<SVGRectElement>(null);
+  const futureRef = useRef<SVGRectElement>(null);
+  const left = layerX(rw, rw.winStart) - 10;
+  const right = layerX(rw, rw.winEnd) + 10;
+
+  useLayoutEffect(() => {
+    const apply = () => {
+      const split = Math.min(right, Math.max(left, layerX(rw, viewportStore.now())));
+      pastRef.current?.setAttribute("width", String(split - left));
+      futureRef.current?.setAttribute("x", String(split));
+      futureRef.current?.setAttribute("width", String(right - split));
+    };
+    apply();
+    return viewportStore.subscribe(apply);
+  }, [rw, left, right]);
+
+  return (
+    <>
+      <defs>
+        <mask id={id} maskUnits="userSpaceOnUse" x={left} y={0} width={right - left} height="100%" style={{ maskType: "alpha" }}>
+          <rect ref={pastRef} x={left} y={0} height="100%" fill="#fff" fillOpacity={pastOpacity} />
+          <rect ref={futureRef} y={0} height="100%" fill="#fff" />
+        </mask>
+      </defs>
+      <g mask={`url(#${id})`}>{children}</g>
+    </>
+  );
+}
