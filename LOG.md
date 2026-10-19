@@ -142,3 +142,5 @@ Format: what I asked → what changed / what the AI got wrong.
   - Test data cleared afterward.
 - Testing note: a hidden browser pane pauses `requestAnimationFrame`, so the app can't be checked there.
 - 160 tests pass, typecheck clean, build OK.
+- Verified Stage 5 by hand: everything works, but the "Never ends / Ends on / Ends after" radios sat in the middle of the panel instead of against the left edge (screenshot).
+  - **AI got wrong:** the panel's text-field rule (`.form input:not([type=checkbox]):not([type=color])`) also caught radio buttons, giving them `width: 100%`. Its high specificity also beat the `.short` width, so the "Every ___" box stretched too. Fixed by excluding radios and wrapping the selector in `:where()` so smaller rules can override it. Checked in the browser: all three radios sit 13 px from the fieldset edge, and the Every box is 63 px wide.

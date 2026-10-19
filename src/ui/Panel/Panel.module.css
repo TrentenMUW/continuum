@@ -74,9 +74,8 @@
   gap: var(--space-3);
 }
 
-.form input:not([type="checkbox"]):not([type="color"]),
-.form textarea,
-.form select {
+/* :where() keeps this at low specificity so classes like .short can override the width. */
+.form :where(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), textarea, select) {
   width: 100%;
   padding: 6px var(--space-2);
   border: 1px solid var(--border);
@@ -85,6 +84,12 @@
   color: var(--text);
   font: inherit;
   color-scheme: dark;
+}
+
+.check input[type="radio"],
+.check input[type="checkbox"] {
+  flex: none;
+  margin: 0;
 }
 
 .form input[aria-invalid="true"],
